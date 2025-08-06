@@ -11,6 +11,7 @@ export function Header() {
     "/": { title: "Dashboard", subtitle: "Overview of donation activity" },
     "/transactions": { title: "Transactions", subtitle: "Manage all donation transactions" },
     "/customers": { title: "Customers", subtitle: "Manage donor records and information" },
+    "/staff": { title: "Staff", subtitle: "Manage team members and permissions" },
     "/create-donation": { title: "Create Donation", subtitle: "Process manual donations" },
   };
   

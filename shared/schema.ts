@@ -39,12 +39,30 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const staff = pgTable("staff", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  role: text("role").notNull().default("staff"), // "admin", "manager", "staff"
+  department: text("department"),
+  status: text("status").notNull().default("active"), // "active", "inactive"
+  hireDate: timestamp("hire_date").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStaffSchema = createInsertSchema(staff).omit({
   id: true,
   createdAt: true,
 });
@@ -97,8 +115,10 @@ export const createTransactionSchema = z.object({
 
 export type Customer = typeof customers.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type Staff = typeof staff.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type InsertStaff = z.infer<typeof insertStaffSchema>;
 export type CreateTransactionPayload = z.infer<typeof createTransactionSchema>;
 
 // View types for frontend

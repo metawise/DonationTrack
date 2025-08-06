@@ -1,4 +1,4 @@
-import { type Customer, type Transaction, type InsertCustomer, type InsertTransaction, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
+import { type Customer, type Transaction, type Staff, type InsertCustomer, type InsertTransaction, type InsertStaff, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -15,6 +15,14 @@ export interface IStorage {
   getTransactionsByCustomer(customerId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 
+  // Staff operations
+  getStaff(id: string): Promise<Staff | undefined>;
+  getStaffByEmail(email: string): Promise<Staff | undefined>;
+  getAllStaff(): Promise<Staff[]>;
+  createStaff(staff: InsertStaff): Promise<Staff>;
+  updateStaff(id: string, updates: Partial<Staff>): Promise<Staff | undefined>;
+  deleteStaff(id: string): Promise<boolean>;
+
   // Dashboard metrics
   getDashboardMetrics(): Promise<DashboardMetrics>;
 }
@@ -22,10 +30,12 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private customers: Map<string, Customer>;
   private transactions: Map<string, Transaction>;
+  private staff: Map<string, Staff>;
 
   constructor() {
     this.customers = new Map();
     this.transactions = new Map();
+    this.staff = new Map();
     this.seedData();
   }
 
@@ -147,6 +157,62 @@ export class MemStorage implements IStorage {
     sampleTransactions.forEach(transaction => {
       this.transactions.set(transaction.id, transaction);
     });
+
+    // Seed staff
+    const sampleStaff: Staff[] = [
+      {
+        id: "staff-001",
+        firstName: "John",
+        lastName: "Smith",
+        email: "john.smith@jewsforjesus.org",
+        phone: "(555) 111-2222",
+        role: "admin",
+        department: "Administration",
+        status: "active",
+        hireDate: new Date("2020-01-15T09:00:00Z"),
+        createdAt: new Date("2020-01-15T09:00:00Z"),
+      },
+      {
+        id: "staff-002",
+        firstName: "Maria",
+        lastName: "Garcia",
+        email: "maria.garcia@jewsforjesus.org",
+        phone: "(555) 333-4444",
+        role: "manager",
+        department: "Development",
+        status: "active",
+        hireDate: new Date("2021-03-20T09:00:00Z"),
+        createdAt: new Date("2021-03-20T09:00:00Z"),
+      },
+      {
+        id: "staff-003",
+        firstName: "David",
+        lastName: "Wilson",
+        email: "david.wilson@jewsforjesus.org",
+        phone: "(555) 555-6666",
+        role: "staff",
+        department: "Outreach",
+        status: "active",
+        hireDate: new Date("2022-06-10T09:00:00Z"),
+        createdAt: new Date("2022-06-10T09:00:00Z"),
+      },
+      {
+        id: "staff-004",
+        firstName: "Lisa",
+        lastName: "Chen",
+        email: "lisa.chen@jewsforjesus.org",
+        phone: "(555) 777-8888",
+        role: "staff",
+        department: "Finance",
+        status: "inactive",
+        hireDate: new Date("2019-09-05T09:00:00Z"),
+        createdAt: new Date("2019-09-05T09:00:00Z"),
+      }
+    ];
+
+    sampleStaff.forEach(staffMember => {
+      this.staff.set(staffMember.id, staffMember);
+    });
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
@@ -253,6 +319,53 @@ export class MemStorage implements IStorage {
     }
 
     return transaction;
+  }
+
+  // Staff operations
+  async getStaff(id: string): Promise<Staff | undefined> {
+    return this.staff.get(id);
+  }
+
+  async getStaffByEmail(email: string): Promise<Staff | undefined> {
+    return Array.from(this.staff.values()).find(
+      staff => staff.email === email
+    );
+  }
+
+  async getAllStaff(): Promise<Staff[]> {
+    return Array.from(this.staff.values()).sort((a, b) => 
+      a.lastName.localeCompare(b.lastName)
+    );
+  }
+
+  async createStaff(insertStaff: InsertStaff): Promise<Staff> {
+    const id = randomUUID();
+    const staff: Staff = { 
+      ...insertStaff,
+      id,
+      createdAt: new Date(),
+      // Ensure all required fields have proper values
+      phone: insertStaff.phone || null,
+      department: insertStaff.department || null,
+      role: insertStaff.role || "staff",
+      status: insertStaff.status || "active",
+      hireDate: insertStaff.hireDate || new Date(),
+    };
+    this.staff.set(id, staff);
+    return staff;
+  }
+
+  async updateStaff(id: string, updates: Partial<Staff>): Promise<Staff | undefined> {
+    const staff = this.staff.get(id);
+    if (!staff) return undefined;
+    
+    const updatedStaff = { ...staff, ...updates };
+    this.staff.set(id, updatedStaff);
+    return updatedStaff;
+  }
+
+  async deleteStaff(id: string): Promise<boolean> {
+    return this.staff.delete(id);
   }
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {

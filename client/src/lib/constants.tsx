@@ -1,4 +1,4 @@
-import { Heart, ChartPie, ArrowLeftRight, Users, PlusCircle, DollarSign, Calendar, TrendingUp, CreditCard, Building } from "lucide-react";
+import { Heart, ChartPie, ArrowLeftRight, Users, PlusCircle, DollarSign, Calendar, TrendingUp, CreditCard, Building, UserCheck } from "lucide-react";
 
 export const NAVIGATION_ITEMS = [
   {
@@ -18,6 +18,12 @@ export const NAVIGATION_ITEMS = [
     label: "Customers",
     icon: Users,
     path: "/customers",
+  },
+  {
+    id: "staff",
+    label: "Staff",
+    icon: UserCheck,
+    path: "/staff",
   },
   {
     id: "create-donation",
@@ -75,3 +81,29 @@ export const CUSTOMER_TYPE_COLORS = {
   "one-time": "bg-blue-100 text-blue-800",
   inactive: "bg-gray-100 text-gray-800",
 };
+
+export const STAFF_STATUS_COLORS = {
+  active: "bg-green-100 text-green-800",
+  inactive: "bg-gray-100 text-gray-800",
+};
+
+export const STAFF_ROLE_COLORS = {
+  admin: "bg-purple-100 text-purple-800",
+  manager: "bg-blue-100 text-blue-800",
+  staff: "bg-gray-100 text-gray-800",
+};
+
+export const DEPARTMENTS = [
+  { value: "administration", label: "Administration" },
+  { value: "development", label: "Development" },
+  { value: "outreach", label: "Outreach" },
+  { value: "finance", label: "Finance" },
+  { value: "education", label: "Education" },
+  { value: "communications", label: "Communications" },
+];
+
+export const STAFF_ROLES = [
+  { value: "admin", label: "Administrator" },
+  { value: "manager", label: "Manager" },
+  { value: "staff", label: "Staff" },
+];
