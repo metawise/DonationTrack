@@ -1,145 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema, loginRequestSchema, verifyCodeSchema } from "@shared/schema";
+import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
 import { z } from "zod";
-import { emailService } from "./email-service";
-import { requireAuth, requireRole } from "./auth-middleware";
-import { randomUUID } from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // Helper function to generate verification code
-  const generateVerificationCode = (): string => {
-    return Math.random().toString().slice(2, 8).padStart(6, '0');
-  };
-
-  // Authentication routes
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email } = loginRequestSchema.parse(req.body);
-      
-      // Check if staff exists and is active
-      const staff = await storage.getStaffByEmail(email);
-      if (!staff) {
-        return res.status(404).json({ error: "Staff member not found" });
-      }
-      
-      if (staff.status !== 'active') {
-        return res.status(403).json({ error: "Account is not active" });
-      }
-      
-      // Generate verification code
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-      
-      await storage.createVerificationCode({
-        email,
-        code,
-        expiresAt,
-      });
-      
-      // Send verification code via dummy email service
-      await emailService.sendVerificationCode(email, code);
-      
-      res.json({ 
-        message: "Verification code sent to your email",
-        email: email // Return email for UI feedback
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid email address", details: error.errors });
-      } else {
-        console.error('Login error:', error);
-        res.status(500).json({ error: "Failed to send verification code" });
-      }
-    }
-  });
-
-  app.post("/api/auth/verify", async (req, res) => {
-    try {
-      const { email, code } = verifyCodeSchema.parse(req.body);
-      
-      // Find and validate verification code
-      const verificationCode = await storage.getVerificationCode(email, code);
-      if (!verificationCode) {
-        return res.status(400).json({ error: "Invalid or expired verification code" });
-      }
-      
-      // Get staff member
-      const staff = await storage.getStaffByEmail(email);
-      if (!staff) {
-        return res.status(404).json({ error: "Staff member not found" });
-      }
-      
-      // Mark code as used
-      await storage.markCodeAsUsed(verificationCode.id);
-      
-      // Create session
-      const sessionToken = randomUUID();
-      const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      
-      await storage.createAuthSession({
-        staffId: staff.id,
-        token: sessionToken,
-        expiresAt: sessionExpiresAt,
-      });
-      
-      res.json({
-        token: sessionToken,
-        expiresAt: sessionExpiresAt,
-        staff: {
-          id: staff.id,
-          firstName: staff.firstName,
-          lastName: staff.lastName,
-          email: staff.email,
-          role: staff.role,
-          department: staff.department,
-        },
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Invalid request", details: error.errors });
-      } else {
-        console.error('Verification error:', error);
-        res.status(500).json({ error: "Failed to verify code" });
-      }
-    }
-  });
-
-  app.post("/api/auth/logout", requireAuth, async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        await storage.deleteAuthSession(token);
-      }
-      
-      res.json({ message: "Logged out successfully" });
-    } catch (error) {
-      console.error('Logout error:', error);
-      res.status(500).json({ error: "Failed to logout" });
-    }
-  });
-
-  app.get("/api/auth/me", requireAuth, async (req, res) => {
-    try {
-      res.json({
-        id: req.staff!.id,
-        firstName: req.staff!.firstName,
-        lastName: req.staff!.lastName,
-        email: req.staff!.email,
-        role: req.staff!.role,
-        department: req.staff!.department,
-      });
-    } catch (error) {
-      console.error('Get current user error:', error);
-      res.status(500).json({ error: "Failed to get user info" });
-    }
-  });
-
-  // Dashboard metrics endpoint (protected)
-  app.get("/api/dashboard/metrics", requireAuth, async (req, res) => {
+  // Dashboard metrics endpoint
+  app.get("/api/dashboard/metrics", async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -148,8 +15,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customers endpoints (protected)
-  app.get("/api/customers", requireAuth, async (req, res) => {
+  // Customers endpoints
+  app.get("/api/customers", async (req, res) => {
     try {
       const customers = await storage.getAllCustomers();
       res.json(customers);
@@ -158,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/customers/:id", requireAuth, async (req, res) => {
+  app.get("/api/customers/:id", async (req, res) => {
     try {
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
@@ -170,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/customers/:id/transactions", requireAuth, async (req, res) => {
+  app.get("/api/customers/:id/transactions", async (req, res) => {
     try {
       const transactions = await storage.getTransactionsByCustomer(req.params.id);
       res.json(transactions);
@@ -179,8 +46,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Transactions endpoints (protected)
-  app.get("/api/transactions", requireAuth, async (req, res) => {
+  // Transactions endpoints
+  app.get("/api/transactions", async (req, res) => {
     try {
       const transactions = await storage.getAllTransactions();
       res.json(transactions);
@@ -189,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/transactions/:id", requireAuth, async (req, res) => {
+  app.get("/api/transactions/:id", async (req, res) => {
     try {
       const transaction = await storage.getTransaction(req.params.id);
       if (!transaction) {
@@ -202,8 +69,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MyWell-compatible transaction creation endpoint (protected)
-  app.post("/api/v1/transaction", requireAuth, async (req, res) => {
+  // MyWell-compatible transaction creation endpoint
+  app.post("/api/v1/transaction", async (req, res) => {
     try {
       const payload = createTransactionSchema.parse(req.body);
       
@@ -265,8 +132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mock refund endpoint (protected)
-  app.post("/api/transactions/:id/refund", requireAuth, async (req, res) => {
+  // Mock refund endpoint
+  app.post("/api/transactions/:id/refund", async (req, res) => {
     try {
       const transaction = await storage.getTransaction(req.params.id);
       if (!transaction) {
@@ -284,8 +151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Staff endpoints (protected, admin/manager only for modifications)
-  app.get("/api/staff", requireAuth, async (req, res) => {
+  // Staff endpoints
+  app.get("/api/staff", async (req, res) => {
     try {
       const staff = await storage.getAllStaff();
       res.json(staff);
@@ -294,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/staff/:id", requireAuth, async (req, res) => {
+  app.get("/api/staff/:id", async (req, res) => {
     try {
       const staff = await storage.getStaff(req.params.id);
       if (!staff) {
@@ -306,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/staff", requireAuth, requireRole(['admin', 'manager']), async (req, res) => {
+  app.post("/api/staff", async (req, res) => {
     try {
       const staffData = insertStaffSchema.parse(req.body);
       const staff = await storage.createStaff(staffData);
@@ -320,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/staff/:id", requireAuth, requireRole(['admin', 'manager']), async (req, res) => {
+  app.put("/api/staff/:id", async (req, res) => {
     try {
       const updates = req.body;
       const staff = await storage.updateStaff(req.params.id, updates);
@@ -333,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/staff/:id", requireAuth, requireRole(['admin', 'manager']), async (req, res) => {
+  app.delete("/api/staff/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteStaff(req.params.id);
       if (!deleted) {

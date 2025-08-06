@@ -1,20 +1,9 @@
 import { useLocation } from "wouter";
-import { Bell, LogOut } from "lucide-react";
+import { Bell } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/lib/constants";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
   
   const currentPage = NAVIGATION_ITEMS.find(item => item.path === location);
   
@@ -28,10 +17,6 @@ export function Header() {
   
   const config = pageConfig[location as keyof typeof pageConfig] || pageConfig["/"];
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="px-6 py-4">
@@ -44,39 +29,10 @@ export function Header() {
             <button className="p-2 text-gray-400 hover:text-gray-600">
               <Bell className="h-5 w-5" />
             </button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 h-auto p-2">
-                  <div className="w-8 h-8 bg-jfj-blue rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
-                    </span>
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-medium text-gray-900">
-                      {user?.firstName} {user?.lastName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {user?.role}
-                    </div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div>
-                    <div className="font-medium">{user?.firstName} {user?.lastName}</div>
-                    <div className="text-sm text-muted-foreground">{user?.email}</div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+              <span className="text-sm font-medium text-gray-700">Staff Member</span>
+            </div>
           </div>
         </div>
       </div>
