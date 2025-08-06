@@ -1,4 +1,17 @@
-import { type Customer, type Transaction, type Staff, type InsertCustomer, type InsertTransaction, type InsertStaff, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
+import { 
+  type Customer, 
+  type Transaction, 
+  type Staff, 
+  type AuthSession,
+  type VerificationCode,
+  type InsertCustomer, 
+  type InsertTransaction, 
+  type InsertStaff,
+  type InsertAuthSession,
+  type InsertVerificationCode,
+  type TransactionWithCustomer, 
+  type DashboardMetrics 
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -25,17 +38,32 @@ export interface IStorage {
 
   // Dashboard metrics
   getDashboardMetrics(): Promise<DashboardMetrics>;
+
+  // Authentication operations
+  createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
+  getVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
+  markCodeAsUsed(id: string): Promise<void>;
+  cleanupExpiredCodes(): Promise<void>;
+  
+  createAuthSession(data: InsertAuthSession): Promise<AuthSession>;
+  getAuthSession(token: string): Promise<AuthSession | undefined>;
+  deleteAuthSession(token: string): Promise<boolean>;
+  getStaffBySessionToken(token: string): Promise<Staff | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private customers: Map<string, Customer>;
   private transactions: Map<string, Transaction>;
   private staff: Map<string, Staff>;
+  private verificationCodes: Map<string, VerificationCode>;
+  private authSessions: Map<string, AuthSession>;
 
   constructor() {
     this.customers = new Map();
     this.transactions = new Map();
     this.staff = new Map();
+    this.verificationCodes = new Map();
+    this.authSessions = new Map();
     this.seedData();
   }
 
@@ -398,6 +426,75 @@ export class MemStorage implements IStorage {
       thisMonth: Math.round(thisMonth / 100), // Convert cents to dollars
       avgDonation: Math.round(avgDonation / 100) // Convert cents to dollars
     };
+  }
+
+  // Authentication operations
+  async createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode> {
+    const id = randomUUID();
+    const code: VerificationCode = {
+      ...data,
+      id,
+      createdAt: new Date(),
+    };
+    this.verificationCodes.set(id, code);
+    return code;
+  }
+
+  async getVerificationCode(email: string, code: string): Promise<VerificationCode | undefined> {
+    return Array.from(this.verificationCodes.values()).find(
+      vc => vc.email === email && vc.code === code && !vc.used && vc.expiresAt > new Date()
+    );
+  }
+
+  async markCodeAsUsed(id: string): Promise<void> {
+    const code = this.verificationCodes.get(id);
+    if (code) {
+      this.verificationCodes.set(id, { ...code, used: true });
+    }
+  }
+
+  async cleanupExpiredCodes(): Promise<void> {
+    const now = new Date();
+    Array.from(this.verificationCodes.entries()).forEach(([id, code]) => {
+      if (code.expiresAt <= now) {
+        this.verificationCodes.delete(id);
+      }
+    });
+  }
+
+  async createAuthSession(data: InsertAuthSession): Promise<AuthSession> {
+    const id = randomUUID();
+    const session: AuthSession = {
+      ...data,
+      id,
+      createdAt: new Date(),
+    };
+    this.authSessions.set(data.token, session);
+    return session;
+  }
+
+  async getAuthSession(token: string): Promise<AuthSession | undefined> {
+    const session = this.authSessions.get(token);
+    if (session && session.expiresAt > new Date()) {
+      return session;
+    }
+    // Clean up expired session
+    if (session) {
+      this.authSessions.delete(token);
+    }
+    return undefined;
+  }
+
+  async deleteAuthSession(token: string): Promise<boolean> {
+    return this.authSessions.delete(token);
+  }
+
+  async getStaffBySessionToken(token: string): Promise<Staff | undefined> {
+    const session = await this.getAuthSession(token);
+    if (session) {
+      return this.getStaff(session.staffId);
+    }
+    return undefined;
   }
 }
 
