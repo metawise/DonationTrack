@@ -24,23 +24,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: authData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: async () => {
+      console.log('🔍 Checking authentication status...');
       const response = await fetch('/api/auth/me', {
         credentials: 'include', // Important for session cookies
       });
       if (!response.ok) {
+        console.log('❌ Auth check failed:', response.status);
         throw new Error('Not authenticated');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ Auth check successful:', data.user?.firstName);
+      return data;
     },
     retry: false,
-    refetchOnWindowFocus: true,
-    staleTime: 0, // Always check for fresh auth state
+    refetchOnWindowFocus: false, // Disable auto-refetch to prevent loops
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   useEffect(() => {
     if (authData?.user) {
+      console.log('🔑 Auth context: User authenticated', authData.user);
       setUser(authData.user);
     } else if (error) {
+      console.log('❌ Auth context: Authentication failed', error.message);
       setUser(null);
     }
   }, [authData, error]);

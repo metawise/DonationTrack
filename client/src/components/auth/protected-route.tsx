@@ -8,17 +8,25 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [location] = useLocation();
+
+  console.log('🛡️ ProtectedRoute check:', {
+    isAuthenticated,
+    isLoading,
+    hasUser: !!user,
+    currentPath: location
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // Use window.location.replace for immediate redirect
+      console.log('🚪 Redirecting to login: not authenticated');
       window.location.replace('/login');
     }
   }, [isAuthenticated, isLoading]);
 
   if (isLoading) {
+    console.log('⏳ ProtectedRoute: Loading authentication state...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="space-y-4 w-full max-w-md">
@@ -35,8 +43,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
+    console.log('❌ ProtectedRoute: User not authenticated, should redirect');
     return null; // Will redirect via useEffect
   }
 
+  console.log('✅ ProtectedRoute: User authenticated, rendering protected content');
   return <>{children}</>;
 }
