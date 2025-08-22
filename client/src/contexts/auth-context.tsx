@@ -47,14 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
       setUser(null);
       sessionStorage.clear();
       localStorage.clear();
-      window.location.href = '/login';
+      window.location.replace('/login');
     } catch (error) {
       // Fallback: just redirect to login
-      window.location.href = '/login';
+      window.location.replace('/login');
     }
   };
 

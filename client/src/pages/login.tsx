@@ -95,10 +95,11 @@ export default function Login() {
         title: "Login Successful",
         description: `Welcome ${data.user?.firstName || 'back'} to the donation management system.`,
       });
-      // Force page reload to trigger auth context refresh
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
+      // Clear forms and redirect immediately
+      emailForm.reset();
+      otpForm.reset();
+      // Use window.location.replace to ensure proper redirect
+      window.location.replace('/');
     },
     onError: (error: any) => {
       toast({

@@ -40,8 +40,12 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Switch>
-            <Route path="/login" component={Login} />
-            <Route component={ProtectedRouter} />
+            <Route path="/login">
+              {() => <Login />}
+            </Route>
+            <Route>
+              {() => <ProtectedRouter />}
+            </Route>
           </Switch>
         </TooltipProvider>
       </AuthProvider>
