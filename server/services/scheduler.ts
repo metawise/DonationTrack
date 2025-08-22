@@ -122,7 +122,10 @@ class SchedulerService {
         .where(eq(syncConfig.name, 'mywell_transactions'))
         .limit(1);
       
-      const endDate = new Date().toISOString().split('T')[0];
+      // Set end date to tomorrow to catch all transactions including today's
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const endDate = tomorrow.toISOString().split('T')[0];
       let startDate = new Date();
       
       if (lastSyncConfig?.lastSyncAt) {
@@ -234,6 +237,28 @@ class SchedulerService {
     });
 
     return info;
+  }
+
+  // Get the next scheduled sync time
+  async getNextSyncTime(): Promise<Date | null> {
+    try {
+      const [config] = await db
+        .select()
+        .from(syncConfig)
+        .where(eq(syncConfig.name, 'mywell_transactions'))
+        .limit(1);
+
+      if (!config || !config.isActive || !config.lastSyncAt) {
+        return null;
+      }
+
+      const nextSync = new Date(config.lastSyncAt);
+      nextSync.setMinutes(nextSync.getMinutes() + config.syncFrequencyMinutes);
+      return nextSync;
+    } catch (error) {
+      console.error('Error getting next sync time:', error);
+      return null;
+    }
   }
 }
 

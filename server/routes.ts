@@ -492,12 +492,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schedulerInfo = scheduler.getSchedulerInfo();
       const jobStatus = scheduler.getJobStatus();
+      const nextSyncTime = await scheduler.getNextSyncTime();
       res.json({ 
         scheduler: schedulerInfo,
-        jobs: jobStatus
+        jobs: jobStatus,
+        nextSyncTime: nextSyncTime
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get scheduler status" });
+    }
+  });
+
+  // Manual sync trigger endpoint
+  app.post("/api/sync/trigger", async (req, res) => {
+    try {
+      console.log('🔄 Manual sync triggered by user');
+      await scheduler.runMyWellSync();
+      res.json({ message: "Sync triggered successfully" });
+    } catch (error) {
+      console.error('❌ Manual sync failed:', error);
+      res.status(500).json({ error: "Failed to trigger sync" });
     }
   });
 

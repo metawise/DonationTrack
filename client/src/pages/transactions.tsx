@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeftRight, Search, DollarSign, Calendar, CreditCard, User, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeftRight, Search, DollarSign, Calendar, CreditCard, User, ChevronLeft, ChevronRight, Filter, RefreshCw, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
 import { TransactionDetailModal } from "@/components/modals/transaction-detail-modal";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 type TransactionWithCustomer = {
   id: string;
@@ -41,10 +43,73 @@ export default function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithCustomer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [countdown, setCountdown] = useState<string>("");
   const itemsPerPage = 50;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Determine if we need to fetch all data for client-side filtering
   const hasFilters = searchTerm || statusFilter !== "all";
+
+  // Query for sync status and next sync time
+  const { data: syncStatus } = useQuery({
+    queryKey: ['/api/sync/status'],
+    refetchInterval: 5000, // Refetch every 5 seconds to update countdown
+  });
+
+  // Manual sync mutation
+  const syncMutation = useMutation({
+    mutationFn: () => apiRequest('/api/sync/trigger', { method: 'POST' }),
+    onSuccess: () => {
+      toast({
+        title: "Sync Triggered",
+        description: "Transaction sync has been started successfully.",
+      });
+      // Refetch transactions after sync
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sync/status'] });
+    },
+    onError: () => {
+      toast({
+        title: "Sync Failed",
+        description: "Failed to trigger transaction sync. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update countdown timer
+  useEffect(() => {
+    if (!syncStatus?.nextSyncTime) {
+      setCountdown("");
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const nextSync = new Date(syncStatus.nextSyncTime).getTime();
+      const timeLeft = nextSync - now;
+
+      if (timeLeft <= 0) {
+        setCountdown("Syncing now...");
+        return;
+      }
+
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+      
+      if (minutes > 0) {
+        setCountdown(`${minutes}m ${seconds}s`);
+      } else {
+        setCountdown(`${seconds}s`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [syncStatus?.nextSyncTime]);
   
   const { data: response, isLoading } = useQuery<TransactionsResponse>({
     queryKey: ['/api/transactions', hasFilters ? 'all' : currentPage, hasFilters ? 'all' : itemsPerPage],
@@ -179,6 +244,24 @@ export default function Transactions() {
               ? `${filteredTransactions.length} filtered` 
               : `${totalTransactions} total`}
           </Badge>
+        </div>
+        <div className="flex items-center space-x-3">
+          {countdown && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <Clock className="h-4 w-4" />
+              <span>Next auto-sync: {countdown}</span>
+            </div>
+          )}
+          <Button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            size="sm"
+            className="flex items-center space-x-2"
+            data-testid="button-sync-transactions"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            <span>{syncMutation.isPending ? 'Syncing...' : 'Sync Now'}</span>
+          </Button>
         </div>
       </div>
 
