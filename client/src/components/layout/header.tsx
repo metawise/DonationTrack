@@ -65,13 +65,34 @@ export function Header() {
       
       {/* Staff Profile Modal */}
       <StaffModal
-        staff={null}
+        staff={{
+          id: "current-staff-id", 
+          firstName: "Current", 
+          lastName: "Staff", 
+          email: "staff@jewsforjesus.org",
+          role: "admin",
+          phone: null,
+          department: null,
+          status: "active",
+          hireDate: new Date(),
+          createdAt: new Date()
+        }}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onSave={(staffData) => {
-          // Handle profile update
-          console.log('Profile updated:', staffData);
-          setIsProfileModalOpen(false);
+        onSave={async (staffData) => {
+          try {
+            const response = await fetch(`/api/staff/current-staff-id`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(staffData)
+            });
+            
+            if (response.ok) {
+              setIsProfileModalOpen(false);
+            }
+          } catch (error) {
+            console.error('Error updating profile:', error);
+          }
         }}
       />
     </header>

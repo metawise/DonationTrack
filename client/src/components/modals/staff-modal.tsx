@@ -19,12 +19,13 @@ interface StaffModalProps {
   staff: Staff | null;
   isOpen: boolean;
   onClose: () => void;
-  mode: "view" | "create" | "edit";
+  mode?: "view" | "create" | "edit";
+  onSave?: (data: StaffFormData) => void;
 }
 
 type StaffFormData = z.infer<typeof insertStaffSchema>;
 
-export function StaffModal({ staff, isOpen, onClose, mode }: StaffModalProps) {
+export function StaffModal({ staff, isOpen, onClose, mode = "edit", onSave }: StaffModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -87,6 +88,11 @@ export function StaffModal({ staff, isOpen, onClose, mode }: StaffModalProps) {
   });
 
   const onSubmit = (data: StaffFormData) => {
+    if (onSave) {
+      onSave(data);
+      return;
+    }
+    
     if (mode === "create") {
       createStaffMutation.mutate(data);
     } else if (mode === "edit") {
