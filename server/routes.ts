@@ -21,8 +21,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customers endpoints
   app.get("/api/customers", async (req, res) => {
     try {
-      const customers = await storage.getAllCustomers();
-      res.json(customers);
+      const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const consolidated = req.query.consolidated === 'true';
+      
+      const result = consolidated 
+        ? await storage.getConsolidatedCustomers(page, limit)
+        : await storage.getAllCustomers(page, limit);
+      
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch customers" });
     }
@@ -52,8 +59,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Transactions endpoints
   app.get("/api/transactions", async (req, res) => {
     try {
-      const transactions = await storage.getAllTransactions();
-      res.json(transactions);
+      const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const result = await storage.getAllTransactions(page, limit);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch transactions" });
     }
@@ -65,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!transaction) {
         return res.status(404).json({ error: "Transaction not found" });
       }
-      const customer = await storage.getCustomer(transaction.customerId);
+      const customer = transaction.customerId ? await storage.getCustomer(transaction.customerId) : null;
       res.json({ ...transaction, customer });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch transaction" });
@@ -123,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: transaction.id,
         status: transaction.status,
         amount: transaction.amount / 100, // Convert back to dollars for response
-        currency: transaction.currency,
+        currency: 'USD',
         createdAt: transaction.createdAt,
       });
     } catch (error) {

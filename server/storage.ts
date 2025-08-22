@@ -8,13 +8,15 @@ export interface IStorage {
   // Customer operations
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByEmail(email: string): Promise<Customer | undefined>;
-  getAllCustomers(): Promise<Customer[]>;
+  getAllCustomers(page?: number, limit?: number): Promise<{ customers: Customer[]; total: number }>;
+  getConsolidatedCustomers(page?: number, limit?: number): Promise<{ customers: Customer[]; total: number }>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | undefined>;
+  findOrCreateCustomer(customerData: InsertCustomer): Promise<Customer>;
 
   // Transaction operations
   getTransaction(id: string): Promise<Transaction | undefined>;
-  getAllTransactions(): Promise<TransactionWithCustomer[]>;
+  getAllTransactions(page?: number, limit?: number): Promise<{ transactions: TransactionWithCustomer[]; total: number }>;
   getTransactionsByCustomer(customerId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 
@@ -51,8 +53,118 @@ export class DatabaseStorage implements IStorage {
     return customer || undefined;
   }
 
-  async getAllCustomers(): Promise<Customer[]> {
-    return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  async getAllCustomers(page?: number, limit?: number): Promise<{ customers: Customer[]; total: number }> {
+    const query = db.select().from(customers).orderBy(desc(customers.createdAt));
+    
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      const customersResult = await query.limit(limit).offset(offset);
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(customers);
+      return { customers: customersResult, total: Number(count) };
+    }
+    
+    const customersResult = await query;
+    return { customers: customersResult, total: customersResult.length };
+  }
+
+  async getConsolidatedCustomers(page?: number, limit?: number): Promise<{ customers: Customer[]; total: number }> {
+    // Get consolidated customers by grouping by email and first/last name
+    const consolidatedQuery = db
+      .select({
+        id: sql<string>`MIN("id")`,
+        externalCustomerId: sql<string>`STRING_AGG(DISTINCT "external_customer_id", ',')`,
+        firstName: sql<string>`MIN("first_name")`,
+        lastName: sql<string>`MIN("last_name")`,
+        email: sql<string>`MIN("email")`,
+        phone: sql<string>`MIN("phone")`,
+        street1: sql<string>`MIN("street1")`,
+        street2: sql<string>`MIN("street2")`,
+        city: sql<string>`MIN("city")`,
+        state: sql<string>`MIN("state")`,
+        postalCode: sql<string>`MIN("postal_code")`,
+        country: sql<string>`MIN("country")`,
+        customerType: sql<string>`CASE WHEN COUNT(*) > 1 THEN 'recurring' ELSE MIN("customer_type") END`,
+        totalDonated: sql<number>`SUM("total_donated")`,
+        transactionCount: sql<number>`SUM("transaction_count")`,
+        lastSyncAt: sql<Date | null>`MAX("last_sync_at")`,
+        createdAt: sql<Date>`MIN("created_at")`,
+        updatedAt: sql<Date>`MAX("updated_at")`,
+      })
+      .from(customers)
+      .groupBy(
+        sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")`
+      )
+      .orderBy(desc(sql`MAX("updated_at")`));
+
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      const customersResult = await consolidatedQuery.limit(limit).offset(offset);
+      
+      // Get total count of consolidated customers
+      const countQuery = db
+        .select({ count: sql<number>`count(*)` })
+        .from(
+          db
+            .select({ groupKey: sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")` })
+            .from(customers)
+            .groupBy(sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")`)
+            .as('grouped')
+        );
+      
+      const [{ count }] = await countQuery;
+      return { customers: customersResult as Customer[], total: Number(count) };
+    }
+    
+    const customersResult = await consolidatedQuery;
+    return { customers: customersResult as Customer[], total: customersResult.length };
+  }
+
+  async findOrCreateCustomer(customerData: InsertCustomer): Promise<Customer> {
+    // Try to find existing customer by email first, then by name if no email
+    let existingCustomer: Customer | undefined;
+    
+    if (customerData.email) {
+      existingCustomer = await this.getCustomerByEmail(customerData.email);
+    } else if (customerData.firstName && customerData.lastName) {
+      // Find by name if no email
+      const [customer] = await db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            eq(customers.firstName, customerData.firstName),
+            eq(customers.lastName, customerData.lastName),
+            sql`${customers.email} IS NULL`
+          )
+        )
+        .limit(1);
+      existingCustomer = customer;
+    }
+
+    if (existingCustomer) {
+      // Update existing customer with any new information
+      const updateData: Partial<Customer> = {};
+      
+      if (customerData.phone && !existingCustomer.phone) updateData.phone = customerData.phone;
+      if (customerData.street1 && !existingCustomer.street1) updateData.street1 = customerData.street1;
+      if (customerData.street2 && !existingCustomer.street2) updateData.street2 = customerData.street2;
+      if (customerData.city && !existingCustomer.city) updateData.city = customerData.city;
+      if (customerData.state && !existingCustomer.state) updateData.state = customerData.state;
+      if (customerData.postalCode && !existingCustomer.postalCode) updateData.postalCode = customerData.postalCode;
+      if (customerData.country && !existingCustomer.country) updateData.country = customerData.country;
+      
+      updateData.lastSyncAt = new Date();
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedCustomer = await this.updateCustomer(existingCustomer.id, updateData);
+        return updatedCustomer || existingCustomer;
+      }
+
+      return existingCustomer;
+    }
+
+    // Create new customer
+    return await this.createCustomer(customerData);
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
@@ -74,14 +186,47 @@ export class DatabaseStorage implements IStorage {
     return transaction || undefined;
   }
 
-  async getAllTransactions(): Promise<TransactionWithCustomer[]> {
-    const results = await db
+  async getAllTransactions(page?: number, limit?: number): Promise<{ transactions: TransactionWithCustomer[]; total: number }> {
+    const query = db
       .select()
       .from(transactions)
       .leftJoin(customers, eq(transactions.customerId, customers.id))
       .orderBy(desc(transactions.createdAt));
 
-    return results.map(row => ({
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      const results = await query.limit(limit).offset(offset);
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(transactions);
+      
+      const mappedResults = results.map(row => ({
+        ...row.transactions,
+        customer: row.customers || {
+          id: '',
+          externalCustomerId: row.transactions.externalCustomerId,
+          firstName: 'Unknown',
+          lastName: 'Customer',
+          email: null,
+          phone: null,
+          street1: null,
+          street2: null,
+          city: null,
+          state: null,
+          postalCode: null,
+          country: null,
+          customerType: 'one-time',
+          totalDonated: 0,
+          transactionCount: 0,
+          lastSyncAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      }));
+      
+      return { transactions: mappedResults, total: Number(count) };
+    }
+
+    const results = await query;
+    const mappedResults = results.map(row => ({
       ...row.transactions,
       customer: row.customers || {
         id: '',
@@ -104,6 +249,8 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       }
     }));
+    
+    return { transactions: mappedResults, total: mappedResults.length };
   }
 
   async getTransactionsByCustomer(customerId: string): Promise<Transaction[]> {
@@ -229,72 +376,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Simplified stub for testing
-export class MemStorage implements IStorage {
-  async getCustomer(id: string): Promise<Customer | undefined> { return undefined; }
-  async getCustomerByEmail(email: string): Promise<Customer | undefined> { return undefined; }
-  async getAllCustomers(): Promise<Customer[]> { return []; }
-  async createCustomer(customer: InsertCustomer): Promise<Customer> {
-    return { 
-      id: randomUUID(),
-      externalCustomerId: 'test-ext-id',
-      ...customer,
-      customerType: 'one-time',
-      totalDonated: 0,
-      transactionCount: 0,
-      lastSyncAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  }
-  async updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | undefined> { return undefined; }
-  
-  async getTransaction(id: string): Promise<Transaction | undefined> { return undefined; }
-  async getAllTransactions(): Promise<TransactionWithCustomer[]> { return []; }
-  async getTransactionsByCustomer(customerId: string): Promise<Transaction[]> { return []; }
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    return {
-      id: randomUUID(),
-      externalCustomerId: 'test-ext-id',
-      customerId: null,
-      ...transaction,
-      syncedAt: new Date(),
-    };
-  }
-
-  async getStaff(id: string): Promise<Staff | undefined> { return undefined; }
-  async getStaffByEmail(email: string): Promise<Staff | undefined> { return undefined; }
-  async getAllStaff(): Promise<Staff[]> { return []; }
-  async createStaff(staff: InsertStaff): Promise<Staff> {
-    return { 
-      id: randomUUID(),
-      ...staff,
-      role: staff.role || 'staff',
-      status: staff.status || 'active',
-      hireDate: staff.hireDate || new Date(),
-      createdAt: new Date(),
-    };
-  }
-  async updateStaff(id: string, updates: Partial<Staff>): Promise<Staff | undefined> { return undefined; }
-  async deleteStaff(id: string): Promise<boolean> { return false; }
-
-  async getDashboardMetrics(): Promise<DashboardMetrics> {
-    return { totalDonations: 0, activeSubscribers: 0, thisMonth: 0, avgDonation: 0 };
-  }
-
-  async getSyncConfig(name: string): Promise<SyncConfig | undefined> { return undefined; }
-  async createOrUpdateSyncConfig(config: InsertSyncConfig): Promise<SyncConfig> {
-    return { 
-      id: randomUUID(),
-      ...config,
-      isActive: config.isActive ?? true,
-      syncFrequencyMinutes: config.syncFrequencyMinutes ?? 60,
-      totalRecordsSynced: config.totalRecordsSynced ?? 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  }
-}
-
-// Use database storage by default, but keep MemStorage for testing
-export const storage = process.env.NODE_ENV === 'test' ? new MemStorage() : new DatabaseStorage();
+// Always use database storage
+export const storage = new DatabaseStorage();

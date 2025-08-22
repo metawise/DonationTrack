@@ -1,6 +1,8 @@
 import { db } from '../db';
 import { customers, transactions, syncConfig } from '@shared/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { storage } from '../storage';
+import { randomUUID } from 'crypto';
 
 const MYWELL_API_BASE = 'https://dev-api.mywell.io/api';
 const MYWELL_API_TOKEN = '84c7f095-8f50-4645-bc65-b0163c104839';
@@ -83,14 +85,8 @@ export class MyWellSyncService {
     if (!billingAddress || !customerId) return null;
 
     try {
-      // Check if customer already exists
-      const [existingCustomer] = await db
-        .select()
-        .from(customers)
-        .where(eq(customers.externalCustomerId, customerId))
-        .limit(1);
-
       const customerData = {
+        id: randomUUID(),
         externalCustomerId: customerId,
         firstName: billingAddress.firstName || '',
         lastName: billingAddress.lastName || '',
@@ -102,28 +98,15 @@ export class MyWellSyncService {
         state: billingAddress.state || null,
         postalCode: billingAddress.postalCode || null,
         country: billingAddress.country || null,
+        customerType: 'one-time',
+        totalDonated: 0,
+        transactionCount: 0,
         lastSyncAt: new Date(),
-        updatedAt: new Date(),
       };
 
-      if (existingCustomer) {
-        // Update existing customer
-        const [updatedCustomer] = await db
-          .update(customers)
-          .set(customerData)
-          .where(eq(customers.id, existingCustomer.id))
-          .returning();
-        
-        return updatedCustomer;
-      } else {
-        // Create new customer
-        const [newCustomer] = await db
-          .insert(customers)
-          .values(customerData)
-          .returning();
-        
-        return newCustomer;
-      }
+      // Use the storage interface to find or create customer
+      const customer = await storage.findOrCreateCustomer(customerData);
+      return customer;
     } catch (error) {
       console.error('Error upserting customer:', error);
       return null;
