@@ -1,5 +1,8 @@
-import { type Customer, type Transaction, type Staff, type InsertCustomer, type InsertTransaction, type InsertStaff, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
+import { type Customer, type Transaction, type Staff, type SyncConfig, type InsertCustomer, type InsertTransaction, type InsertStaff, type InsertSyncConfig, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { customers, transactions, staff, syncConfig } from "@shared/schema";
+import { eq, desc, count, sum, sql, and, gte } from "drizzle-orm";
 
 export interface IStorage {
   // Customer operations
@@ -25,380 +28,273 @@ export interface IStorage {
 
   // Dashboard metrics
   getDashboardMetrics(): Promise<DashboardMetrics>;
+
+  // Sync configuration operations
+  getSyncConfig(name: string): Promise<SyncConfig | undefined>;
+  createOrUpdateSyncConfig(config: InsertSyncConfig): Promise<SyncConfig>;
 }
 
-export class MemStorage implements IStorage {
-  private customers: Map<string, Customer>;
-  private transactions: Map<string, Transaction>;
-  private staff: Map<string, Staff>;
-
-  constructor() {
-    this.customers = new Map();
-    this.transactions = new Map();
-    this.staff = new Map();
-    this.seedData();
-  }
-
-  private seedData() {
-    // Seed customers
-    const sampleCustomers: Customer[] = [
-      {
-        id: "cust-001",
-        firstName: "Sarah",
-        lastName: "Johnson",
-        email: "sarah.johnson@email.com",
-        phone: "(555) 123-4567",
-        street1: "123 Main Street",
-        street2: null,
-        city: "New York",
-        state: "NY",
-        postalCode: "10001",
-        country: "US",
-        customerType: "active-subscriber",
-        totalDonated: 187500, // $1,875.00
-        transactionCount: 15,
-        createdAt: new Date("2023-06-15T10:30:00Z"),
-      },
-      {
-        id: "cust-002",
-        firstName: "Michael",
-        lastName: "Chen",
-        email: "m.chen@email.com",
-        phone: "(555) 987-6543",
-        street1: "456 Oak Avenue",
-        street2: null,
-        city: "Los Angeles",
-        state: "CA",
-        postalCode: "90210",
-        country: "US",
-        customerType: "one-time",
-        totalDonated: 45000, // $450.00
-        transactionCount: 3,
-        createdAt: new Date("2023-08-22T14:15:00Z"),
-      },
-      {
-        id: "cust-003",
-        firstName: "Emma",
-        lastName: "Rodriguez",
-        email: "emma.r@email.com",
-        phone: "(555) 456-7890",
-        street1: "789 Pine Street",
-        street2: null,
-        city: "Houston",
-        state: "TX",
-        postalCode: "77001",
-        country: "US",
-        customerType: "active-subscriber",
-        totalDonated: 240000, // $2,400.00
-        transactionCount: 12,
-        createdAt: new Date("2023-03-10T09:45:00Z"),
-      }
-    ];
-
-    sampleCustomers.forEach(customer => {
-      this.customers.set(customer.id, customer);
-    });
-
-    // Seed transactions
-    const sampleTransactions: Transaction[] = [
-      {
-        id: "txn-001",
-        customerId: "cust-001",
-        type: "monthly",
-        kind: "donation",
-        amount: 12500, // $125.00
-        currency: "USD",
-        status: "completed",
-        designation: "general",
-        description: "Monthly donation - General Fund",
-        ipAddress: "192.168.1.1",
-        paymentMethodType: "credit-card",
-        paymentMethodLast4: "4242",
-        paymentMethodExpires: "12/25",
-        clientType: "online",
-        createdAt: new Date("2024-01-15T14:30:00Z"),
-      },
-      {
-        id: "txn-002",
-        customerId: "cust-002",
-        type: "one-time",
-        kind: "donation",
-        amount: 5000, // $50.00
-        currency: "USD",
-        status: "completed",
-        designation: "missions",
-        description: "One-time donation - Missions",
-        ipAddress: "192.168.1.2",
-        paymentMethodType: "credit-card",
-        paymentMethodLast4: "1234",
-        paymentMethodExpires: "08/26",
-        clientType: "online",
-        createdAt: new Date("2024-01-14T11:45:00Z"),
-      },
-      {
-        id: "txn-003",
-        customerId: "cust-003",
-        type: "monthly",
-        kind: "donation",
-        amount: 20000, // $200.00
-        currency: "USD",
-        status: "completed",
-        designation: "general",
-        description: "Monthly donation - General Fund",
-        ipAddress: "192.168.1.3",
-        paymentMethodType: "credit-card",
-        paymentMethodLast4: "5678",
-        paymentMethodExpires: "03/27",
-        clientType: "online",
-        createdAt: new Date("2024-01-13T09:15:00Z"),
-      }
-    ];
-
-    sampleTransactions.forEach(transaction => {
-      this.transactions.set(transaction.id, transaction);
-    });
-
-    // Seed staff
-    const sampleStaff: Staff[] = [
-      {
-        id: "staff-001",
-        firstName: "John",
-        lastName: "Smith",
-        email: "john.smith@jewsforjesus.org",
-        phone: "(555) 111-2222",
-        role: "admin",
-        department: "Administration",
-        status: "active",
-        hireDate: new Date("2020-01-15T09:00:00Z"),
-        createdAt: new Date("2020-01-15T09:00:00Z"),
-      },
-      {
-        id: "staff-002",
-        firstName: "Maria",
-        lastName: "Garcia",
-        email: "maria.garcia@jewsforjesus.org",
-        phone: "(555) 333-4444",
-        role: "manager",
-        department: "Development",
-        status: "active",
-        hireDate: new Date("2021-03-20T09:00:00Z"),
-        createdAt: new Date("2021-03-20T09:00:00Z"),
-      },
-      {
-        id: "staff-003",
-        firstName: "David",
-        lastName: "Wilson",
-        email: "david.wilson@jewsforjesus.org",
-        phone: "(555) 555-6666",
-        role: "staff",
-        department: "Outreach",
-        status: "active",
-        hireDate: new Date("2022-06-10T09:00:00Z"),
-        createdAt: new Date("2022-06-10T09:00:00Z"),
-      },
-      {
-        id: "staff-004",
-        firstName: "Lisa",
-        lastName: "Chen",
-        email: "lisa.chen@jewsforjesus.org",
-        phone: "(555) 777-8888",
-        role: "staff",
-        department: "Finance",
-        status: "inactive",
-        hireDate: new Date("2019-09-05T09:00:00Z"),
-        createdAt: new Date("2019-09-05T09:00:00Z"),
-      }
-    ];
-
-    sampleStaff.forEach(staffMember => {
-      this.staff.set(staffMember.id, staffMember);
-    });
-  }
-
+// Database Storage implementation
+export class DatabaseStorage implements IStorage {
   async getCustomer(id: string): Promise<Customer | undefined> {
-    return this.customers.get(id);
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+    return customer || undefined;
   }
 
   async getCustomerByEmail(email: string): Promise<Customer | undefined> {
-    return Array.from(this.customers.values()).find(
-      customer => customer.email === email
-    );
+    const [customer] = await db.select().from(customers).where(eq(customers.email, email)).limit(1);
+    return customer || undefined;
+  }
+
+  async getCustomerByExternalId(externalId: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.externalCustomerId, externalId)).limit(1);
+    return customer || undefined;
   }
 
   async getAllCustomers(): Promise<Customer[]> {
-    return Array.from(this.customers.values()).sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
+    return await db.select().from(customers).orderBy(desc(customers.createdAt));
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const id = randomUUID();
-    const customer: Customer = { 
-      ...insertCustomer,
-      id,
-      createdAt: new Date(),
-      // Ensure all required fields have proper values
-      street1: insertCustomer.street1 || null,
-      street2: insertCustomer.street2 || null,
-      city: insertCustomer.city || null,
-      state: insertCustomer.state || null,
-      postalCode: insertCustomer.postalCode || null,
-      country: insertCustomer.country || null,
-      phone: insertCustomer.phone || null,
-      customerType: insertCustomer.customerType || "one-time",
-      totalDonated: insertCustomer.totalDonated || 0,
-      transactionCount: insertCustomer.transactionCount || 0,
-    };
-    this.customers.set(id, customer);
+    const [customer] = await db.insert(customers).values(insertCustomer).returning();
     return customer;
   }
 
   async updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | undefined> {
-    const customer = this.customers.get(id);
-    if (!customer) return undefined;
-    
-    const updatedCustomer = { ...customer, ...updates };
-    this.customers.set(id, updatedCustomer);
-    return updatedCustomer;
+    const [customer] = await db
+      .update(customers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return customer || undefined;
   }
 
   async getTransaction(id: string): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
+    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    return transaction || undefined;
   }
 
   async getAllTransactions(): Promise<TransactionWithCustomer[]> {
-    const transactions = Array.from(this.transactions.values()).sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    );
-    
-    return transactions.map(transaction => {
-      const customer = this.customers.get(transaction.customerId);
-      return {
-        ...transaction,
-        customer: customer!
-      };
-    });
+    const results = await db
+      .select()
+      .from(transactions)
+      .leftJoin(customers, eq(transactions.customerId, customers.id))
+      .orderBy(desc(transactions.createdAt));
+
+    return results.map(row => ({
+      ...row.transactions,
+      customer: row.customers || {
+        id: '',
+        externalCustomerId: row.transactions.externalCustomerId,
+        firstName: 'Unknown',
+        lastName: 'Customer',
+        email: null,
+        phone: null,
+        street1: null,
+        street2: null,
+        city: null,
+        state: null,
+        postalCode: null,
+        country: null,
+        customerType: 'one-time',
+        totalDonated: 0,
+        transactionCount: 0,
+        lastSyncAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    }));
   }
 
   async getTransactionsByCustomer(customerId: string): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(transaction => transaction.customerId === customerId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return await db.select().from(transactions).where(eq(transactions.customerId, customerId)).orderBy(desc(transactions.createdAt));
   }
 
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const id = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const transaction: Transaction = { 
-      ...insertTransaction,
-      id,
-      createdAt: new Date(),
-      // Ensure all required fields have proper values
-      kind: insertTransaction.kind || "donation",
-      status: insertTransaction.status || "completed",
-      currency: insertTransaction.currency || "USD",
-      designation: insertTransaction.designation || null,
-      description: insertTransaction.description || null,
-      ipAddress: insertTransaction.ipAddress || null,
-      paymentMethodType: insertTransaction.paymentMethodType || "credit-card",
-      paymentMethodLast4: insertTransaction.paymentMethodLast4 || null,
-      paymentMethodExpires: insertTransaction.paymentMethodExpires || null,
-      clientType: insertTransaction.clientType || "manual",
-    };
-    this.transactions.set(id, transaction);
-
-    // Update customer totals
-    const customer = this.customers.get(insertTransaction.customerId);
-    if (customer) {
-      const updatedCustomer = {
-        ...customer,
-        totalDonated: customer.totalDonated + insertTransaction.amount,
-        transactionCount: customer.transactionCount + 1,
-        customerType: insertTransaction.type === "monthly" ? "active-subscriber" : customer.customerType
-      };
-      this.customers.set(customer.id, updatedCustomer);
+    const [transaction] = await db.insert(transactions).values(insertTransaction).returning();
+    
+    // Update customer totals if customer exists
+    if (transaction.customerId) {
+      const customer = await this.getCustomer(transaction.customerId);
+      if (customer) {
+        await this.updateCustomer(transaction.customerId, {
+          totalDonated: customer.totalDonated + transaction.amount,
+          transactionCount: customer.transactionCount + 1,
+        });
+      }
     }
 
     return transaction;
   }
 
-  // Staff operations
   async getStaff(id: string): Promise<Staff | undefined> {
-    return this.staff.get(id);
+    const [staffMember] = await db.select().from(staff).where(eq(staff.id, id)).limit(1);
+    return staffMember || undefined;
   }
 
   async getStaffByEmail(email: string): Promise<Staff | undefined> {
-    return Array.from(this.staff.values()).find(
-      staff => staff.email === email
-    );
+    const [staffMember] = await db.select().from(staff).where(eq(staff.email, email)).limit(1);
+    return staffMember || undefined;
   }
 
   async getAllStaff(): Promise<Staff[]> {
-    return Array.from(this.staff.values()).sort((a, b) => 
-      a.lastName.localeCompare(b.lastName)
-    );
+    return await db.select().from(staff).orderBy(staff.lastName);
   }
 
   async createStaff(insertStaff: InsertStaff): Promise<Staff> {
-    const id = randomUUID();
-    const staff: Staff = { 
-      ...insertStaff,
-      id,
-      createdAt: new Date(),
-      // Ensure all required fields have proper values
-      phone: insertStaff.phone || null,
-      department: insertStaff.department || null,
-      role: insertStaff.role || "staff",
-      status: insertStaff.status || "active",
-      hireDate: insertStaff.hireDate || new Date(),
-    };
-    this.staff.set(id, staff);
-    return staff;
+    const [staffMember] = await db.insert(staff).values(insertStaff).returning();
+    return staffMember;
   }
 
   async updateStaff(id: string, updates: Partial<Staff>): Promise<Staff | undefined> {
-    const staff = this.staff.get(id);
-    if (!staff) return undefined;
-    
-    const updatedStaff = { ...staff, ...updates };
-    this.staff.set(id, updatedStaff);
-    return updatedStaff;
+    const [staffMember] = await db
+      .update(staff)
+      .set(updates)
+      .where(eq(staff.id, id))
+      .returning();
+    return staffMember || undefined;
   }
 
   async deleteStaff(id: string): Promise<boolean> {
-    return this.staff.delete(id);
+    const result = await db.delete(staff).where(eq(staff.id, id));
+    return (result.rowCount || 0) > 0;
   }
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const transactions = Array.from(this.transactions.values());
-    const customers = Array.from(this.customers.values());
+    // Get total donations (sum of all transaction amounts)
+    const [totalResult] = await db
+      .select({ total: sum(transactions.amount) })
+      .from(transactions)
+      .where(eq(transactions.status, 'SETTLED'));
     
-    const totalDonations = transactions
-      .filter(t => t.status === "completed")
-      .reduce((sum, t) => sum + t.amount, 0);
+    // Get active subscribers count (customers with subscription transactions)
+    const [subscribersResult] = await db
+      .select({ count: count() })
+      .from(customers)
+      .where(eq(customers.customerType, 'active-subscriber'));
+
+    // Get this month's donations
+    const firstOfMonth = new Date();
+    firstOfMonth.setDate(1);
+    firstOfMonth.setHours(0, 0, 0, 0);
     
-    const activeSubscribers = customers.filter(c => c.customerType === "active-subscriber").length;
-    
-    const thisMonth = transactions
-      .filter(t => {
-        const transactionDate = new Date(t.createdAt);
-        const now = new Date();
-        return transactionDate.getMonth() === now.getMonth() && 
-               transactionDate.getFullYear() === now.getFullYear() &&
-               t.status === "completed";
+    const [monthResult] = await db
+      .select({ total: sum(transactions.amount) })
+      .from(transactions)
+      .where(and(
+        eq(transactions.status, 'SETTLED'),
+        gte(transactions.createdAt, firstOfMonth)
+      ));
+
+    // Get transaction count for average calculation
+    const [avgResult] = await db
+      .select({ 
+        count: count(), 
+        total: sum(transactions.amount) 
       })
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const avgDonation = transactions.length > 0 
-      ? Math.round(totalDonations / transactions.filter(t => t.status === "completed").length)
-      : 0;
+      .from(transactions)
+      .where(eq(transactions.status, 'SETTLED'));
+
+    const totalDonations = Number(totalResult?.total || 0) / 100; // Convert from cents
+    const activeSubscribers = subscribersResult?.count || 0;
+    const thisMonth = Number(monthResult?.total || 0) / 100; // Convert from cents
+    const avgDonation = avgResult?.count > 0 ? Number(avgResult.total || 0) / avgResult.count / 100 : 0;
 
     return {
-      totalDonations: Math.round(totalDonations / 100), // Convert cents to dollars
+      totalDonations,
       activeSubscribers,
-      thisMonth: Math.round(thisMonth / 100), // Convert cents to dollars
-      avgDonation: Math.round(avgDonation / 100) // Convert cents to dollars
+      thisMonth,
+      avgDonation,
+    };
+  }
+
+  async getSyncConfig(name: string): Promise<SyncConfig | undefined> {
+    const [config] = await db.select().from(syncConfig).where(eq(syncConfig.name, name)).limit(1);
+    return config || undefined;
+  }
+
+  async createOrUpdateSyncConfig(insertConfig: InsertSyncConfig): Promise<SyncConfig> {
+    const [config] = await db
+      .insert(syncConfig)
+      .values(insertConfig)
+      .onConflictDoUpdate({
+        target: syncConfig.name,
+        set: {
+          ...insertConfig,
+          updatedAt: new Date(),
+        }
+      })
+      .returning();
+    return config;
+  }
+}
+
+// Simplified stub for testing
+export class MemStorage implements IStorage {
+  async getCustomer(id: string): Promise<Customer | undefined> { return undefined; }
+  async getCustomerByEmail(email: string): Promise<Customer | undefined> { return undefined; }
+  async getAllCustomers(): Promise<Customer[]> { return []; }
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    return { 
+      id: randomUUID(),
+      externalCustomerId: 'test-ext-id',
+      ...customer,
+      customerType: 'one-time',
+      totalDonated: 0,
+      transactionCount: 0,
+      lastSyncAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+  async updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | undefined> { return undefined; }
+  
+  async getTransaction(id: string): Promise<Transaction | undefined> { return undefined; }
+  async getAllTransactions(): Promise<TransactionWithCustomer[]> { return []; }
+  async getTransactionsByCustomer(customerId: string): Promise<Transaction[]> { return []; }
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    return {
+      id: randomUUID(),
+      externalCustomerId: 'test-ext-id',
+      customerId: null,
+      ...transaction,
+      syncedAt: new Date(),
+    };
+  }
+
+  async getStaff(id: string): Promise<Staff | undefined> { return undefined; }
+  async getStaffByEmail(email: string): Promise<Staff | undefined> { return undefined; }
+  async getAllStaff(): Promise<Staff[]> { return []; }
+  async createStaff(staff: InsertStaff): Promise<Staff> {
+    return { 
+      id: randomUUID(),
+      ...staff,
+      role: staff.role || 'staff',
+      status: staff.status || 'active',
+      hireDate: staff.hireDate || new Date(),
+      createdAt: new Date(),
+    };
+  }
+  async updateStaff(id: string, updates: Partial<Staff>): Promise<Staff | undefined> { return undefined; }
+  async deleteStaff(id: string): Promise<boolean> { return false; }
+
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
+    return { totalDonations: 0, activeSubscribers: 0, thisMonth: 0, avgDonation: 0 };
+  }
+
+  async getSyncConfig(name: string): Promise<SyncConfig | undefined> { return undefined; }
+  async createOrUpdateSyncConfig(config: InsertSyncConfig): Promise<SyncConfig> {
+    return { 
+      id: randomUUID(),
+      ...config,
+      isActive: config.isActive ?? true,
+      syncFrequencyMinutes: config.syncFrequencyMinutes ?? 60,
+      totalRecordsSynced: config.totalRecordsSynced ?? 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
   }
 }
 
-export const storage = new MemStorage();
+// Use database storage by default, but keep MemStorage for testing
+export const storage = process.env.NODE_ENV === 'test' ? new MemStorage() : new DatabaseStorage();

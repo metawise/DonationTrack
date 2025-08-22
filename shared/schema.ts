@@ -1,13 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
+// MyWell API Customer data - stores basic info, references external customerId
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  externalCustomerId: text("external_customer_id").notNull().unique(), // MyWell customerId
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email"),
   phone: text("phone"),
   street1: text("street1"),
   street2: text("street2"),
@@ -18,26 +21,43 @@ export const customers = pgTable("customers", {
   customerType: text("customer_type").notNull().default("one-time"), // "one-time", "active-subscriber", "inactive"
   totalDonated: integer("total_donated").notNull().default(0),
   transactionCount: integer("transaction_count").notNull().default(0),
+  lastSyncAt: timestamp("last_sync_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  externalCustomerIdIdx: index("customer_external_id_idx").on(table.externalCustomerId),
+}));
 
+// MyWell API Transaction data - mirrors API structure
 export const transactions = pgTable("transactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
-  type: text("type").notNull(), // "one-time", "monthly"
-  kind: text("kind").notNull().default("donation"),
-  amount: integer("amount").notNull(), // Amount in cents
-  currency: text("currency").notNull().default("USD"),
-  status: text("status").notNull().default("completed"), // "completed", "pending", "failed"
-  designation: text("designation"),
-  description: text("description"),
+  id: varchar("id").primaryKey(), // Use MyWell transaction ID directly
+  externalCustomerId: text("external_customer_id").notNull(),
+  customerId: varchar("customer_id").references(() => customers.id),
+  type: text("type").notNull(), // "SALE", etc from MyWell
+  kind: text("kind").notNull(), // "DONATION", etc from MyWell
+  amount: integer("amount").notNull(), // Amount in cents from MyWell
+  emailAddress: text("email_address"),
+  paymentMethod: text("payment_method"),
+  responseBody: jsonb("response_body"), // Full payment method details from MyWell
+  status: text("status").notNull(), // "SETTLED", "PENDING", etc from MyWell
+  responseCode: integer("response_code"),
+  responseMessage: text("response_message"),
+  subscriptionId: text("subscription_id"),
+  settlementBatchId: text("settlement_batch_id"),
+  billingAddress: jsonb("billing_address"), // Address object from MyWell
+  shippingAddress: jsonb("shipping_address"), // Address object from MyWell
   ipAddress: text("ip_address"),
-  paymentMethodType: text("payment_method_type").notNull().default("credit-card"), // "credit-card", "bank"
-  paymentMethodLast4: text("payment_method_last4"),
-  paymentMethodExpires: text("payment_method_expires"),
-  clientType: text("client_type").notNull().default("manual"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  settledAt: timestamp("settled_at"),
+  piUpdatedAt: timestamp("pi_updated_at"), // MyWell's piUpdatedAt field
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+}, (table) => ({
+  customerIdIdx: index("transaction_customer_id_idx").on(table.externalCustomerId),
+  createdAtIdx: index("transaction_created_at_idx").on(table.createdAt),
+  statusIdx: index("transaction_status_idx").on(table.status),
+}));
 
 export const staff = pgTable("staff", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -52,19 +72,52 @@ export const staff = pgTable("staff", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Sync configuration table - tracks sync settings and status
+export const syncConfig = pgTable("sync_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // "mywell_transactions"
+  isActive: boolean("is_active").notNull().default(true),
+  syncFrequencyMinutes: integer("sync_frequency_minutes").notNull().default(60), // Default 1 hour
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncStatus: text("last_sync_status"), // "success", "error", "in_progress"
+  lastSyncError: text("last_sync_error"),
+  totalRecordsSynced: integer("total_records_synced").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Relations
+export const customersRelations = relations(customers, ({ many }) => ({
+  transactions: many(transactions),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  customer: one(customers, {
+    fields: [transactions.customerId],
+    references: [customers.id],
+  }),
+}));
+
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  lastSyncAt: true,
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
-  id: true,
-  createdAt: true,
+  syncedAt: true,
 });
 
 export const insertStaffSchema = createInsertSchema(staff).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertSyncConfigSchema = createInsertSchema(syncConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // MyWell API compatible schema
@@ -116,9 +169,11 @@ export const createTransactionSchema = z.object({
 export type Customer = typeof customers.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Staff = typeof staff.$inferSelect;
+export type SyncConfig = typeof syncConfig.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type InsertStaff = z.infer<typeof insertStaffSchema>;
+export type InsertSyncConfig = z.infer<typeof insertSyncConfigSchema>;
 export type CreateTransactionPayload = z.infer<typeof createTransactionSchema>;
 
 // View types for frontend

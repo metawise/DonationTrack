@@ -1,4 +1,4 @@
-import { Heart, ChartPie, ArrowLeftRight, Users, PlusCircle, DollarSign, Calendar, TrendingUp, CreditCard, Building, UserCheck } from "lucide-react";
+import { Heart, ChartPie, ArrowLeftRight, Users, PlusCircle, DollarSign, Calendar, TrendingUp, CreditCard, Building, UserCheck, Database } from "lucide-react";
 
 export const NAVIGATION_ITEMS = [
   {
@@ -24,6 +24,12 @@ export const NAVIGATION_ITEMS = [
     label: "Staff",
     icon: UserCheck,
     path: "/staff",
+  },
+  {
+    id: "sync",
+    label: "Sync Settings",
+    icon: Database,
+    path: "/sync",
   },
   {
     id: "create-donation",

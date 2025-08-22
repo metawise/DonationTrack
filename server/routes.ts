@@ -2,6 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
+import { myWellSync } from "./services/mywell-sync";
+import { sendAuthEmail, sendPasswordResetEmail } from "./services/email";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -209,6 +212,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Staff member deleted successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete staff member" });
+    }
+  });
+
+  // Sync endpoints
+  app.post("/api/sync/mywell", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.body;
+      const result = await myWellSync.syncTransactions(startDate, endDate);
+      
+      if (result.success) {
+        res.json({
+          message: "Sync completed successfully",
+          totalSynced: result.totalSynced,
+        });
+      } else {
+        res.status(500).json({
+          error: "Sync failed",
+          details: result.error,
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to start sync" });
+    }
+  });
+
+  app.get("/api/sync/config", async (req, res) => {
+    try {
+      const config = await myWellSync.getLastSyncInfo();
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get sync configuration" });
+    }
+  });
+
+  app.put("/api/sync/config", async (req, res) => {
+    try {
+      const { syncFrequencyMinutes } = req.body;
+      await myWellSync.updateSyncFrequency(syncFrequencyMinutes);
+      res.json({ message: "Sync frequency updated successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update sync configuration" });
+    }
+  });
+
+  // Email endpoints
+  app.post("/api/auth/send-code", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const authCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const sent = await sendAuthEmail(email, authCode);
+      
+      if (sent) {
+        // In a real app, you'd store this code temporarily for verification
+        res.json({ message: "Authentication code sent successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to send authentication code" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send authentication code" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${randomUUID()}`;
+      
+      const sent = await sendPasswordResetEmail(email, resetLink);
+      
+      if (sent) {
+        res.json({ message: "Password reset link sent successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to send password reset email" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send password reset email" });
     }
   });
 

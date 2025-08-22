@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { scheduler } from "./services/scheduler";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -65,7 +66,15 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Initialize scheduler for MyWell sync
+    try {
+      await scheduler.initializeScheduler();
+      log("Scheduler initialized successfully");
+    } catch (error) {
+      log("Failed to initialize scheduler:", error);
+    }
   });
 })();

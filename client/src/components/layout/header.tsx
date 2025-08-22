@@ -12,6 +12,7 @@ export function Header() {
     "/transactions": { title: "Transactions", subtitle: "Manage all donation transactions" },
     "/customers": { title: "Customers", subtitle: "Manage donor records and information" },
     "/staff": { title: "Staff", subtitle: "Manage team members and permissions" },
+    "/sync": { title: "Sync Settings", subtitle: "Configure MyWell API synchronization" },
     "/create-donation": { title: "Create Donation", subtitle: "Process manual donations" },
   };
   

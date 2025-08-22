@@ -1,8 +1,8 @@
 # Overview
 
-This is a donation management system for Jews for Jesus, built as a full-stack web application. The system provides a comprehensive dashboard for managing donors, tracking transactions, and processing donations. It features a modern React frontend with a clean, professional interface and an Express.js backend with PostgreSQL database integration.
+This is a comprehensive donation management system for Jews for Jesus, built as a full-stack web application. The system integrates with MyWell payment processor API for real transaction data, uses Supabase cloud database for customer storage, and includes Resend API for email notifications. It provides a modern React dashboard for managing donors, tracking transactions, processing donations, and configuring automated data synchronization.
 
-The application serves as an internal tool for staff members to view donation analytics, manage customer records, process transactions, and handle refunds. It supports both one-time donations and monthly subscriptions with detailed tracking of payment methods and donor information.
+The application serves as an internal tool for staff members to view donation analytics, manage customer records, process transactions, handle refunds, and monitor API integrations. It features configurable sync functionality that periodically fetches data from the MyWell API rather than real-time interaction, ensuring reliable data management and reduced API load.
 
 # User Preferences
 
@@ -26,11 +26,18 @@ Preferred communication style: Simple, everyday language.
 - **API Pattern**: RESTful endpoints with consistent error handling and request/response logging
 
 ## Data Storage Architecture
-- **Database**: PostgreSQL with Neon Database serverless driver
+- **Database**: PostgreSQL with Supabase cloud hosting and serverless driver
 - **ORM**: Drizzle ORM for type-safe database operations
 - **Schema**: Shared TypeScript schema definitions between client and server
-- **Migrations**: Drizzle Kit for database schema management
-- **Development Storage**: In-memory storage implementation with seed data for development/testing
+- **Migrations**: Drizzle Kit for database schema management (`npm run db:push`)
+- **Data Sources**: Real transaction data from MyWell API, stored customer information, staff records
+
+## Sync Architecture
+- **Scheduler**: Node-cron based automated sync service
+- **Sync Configuration**: Database-stored sync settings with configurable frequency
+- **API Integration**: Paginated data retrieval from MyWell API (500 records per request)
+- **Data Processing**: Customer record creation/updates, transaction deduplication
+- **Monitoring**: Last sync tracking, error logging, and success metrics
 
 ## Database Schema Design
 - **Customers Table**: Stores donor information including personal details, addresses, and donation metrics
@@ -52,8 +59,20 @@ Preferred communication style: Simple, everyday language.
 # External Dependencies
 
 ## Database Services
-- **Neon Database**: Serverless PostgreSQL hosting with connection pooling
+- **Supabase**: Cloud PostgreSQL database with real-time capabilities and connection pooling
 - **Connect-pg-simple**: PostgreSQL session store for Express sessions
+
+## External API Integrations
+- **MyWell API**: Payment processor integration for transaction data synchronization
+  - Endpoint: https://dev-api.mywell.io/api/transaction/gift/search
+  - Authentication: API token-based (84c7f095-8f50-4645-bc65-b0163c104839)
+  - Features: Paginated transaction retrieval, date range filtering, gift transaction search
+
+## Email Services
+- **Resend**: Modern email API for transactional emails
+  - Authentication codes and password reset emails
+  - Professional email templates with Jews for Jesus branding
+  - API Key: re_FCHtmZRs_BejUiuRkmnSnXszoSDyQz8JD
 
 ## UI & Component Libraries
 - **Radix UI**: Unstyled, accessible component primitives for all interactive elements

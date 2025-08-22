@@ -9,6 +9,7 @@ import Transactions from "@/pages/transactions";
 import Customers from "@/pages/customers";
 import CreateDonation from "@/pages/create-donation";
 import Staff from "@/pages/staff";
+import Sync from "@/pages/sync";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/customers" component={Customers} />
       <Route path="/staff" component={Staff} />
+      <Route path="/sync" component={Sync} />
       <Route path="/create-donation" component={CreateDonation} />
       <Route component={NotFound} />
     </Switch>
