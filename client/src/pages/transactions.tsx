@@ -72,12 +72,16 @@ export default function Transactions() {
     return matchesSearch && matchesStatus;
   });
 
-  // Adjust pagination based on filtered results
-  const filteredTotalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const paginatedFilteredTransactions = filteredTransactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Calculate pagination for filtered results
+  const hasFilters = searchTerm || statusFilter !== "all";
+  const displayTransactions = hasFilters ? filteredTransactions : transactions;
+  const filteredTotalPages = hasFilters ? Math.ceil(filteredTransactions.length / itemsPerPage) : totalPages;
+  
+  // For server-side pagination (no filters) use original transactions
+  // For client-side filtering, paginate the filtered results
+  const paginatedTransactions = hasFilters 
+    ? filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : transactions;
 
   const formatAmount = (amount: number) => {
     return (amount / 100).toLocaleString("en-US", {
@@ -88,6 +92,17 @@ export default function Transactions() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
   };
 
   const handleViewTransaction = (transaction: TransactionWithCustomer) => {
@@ -152,7 +167,7 @@ export default function Transactions() {
           <ArrowLeftRight className="h-5 w-5 text-jfj-blue" />
           <h1 className="text-2xl font-bold">Transactions</h1>
           <Badge variant="outline">
-            {searchTerm || statusFilter !== "all" 
+            {hasFilters 
               ? `${filteredTransactions.length} filtered` 
               : `${totalTransactions} total`}
           </Badge>
@@ -169,11 +184,11 @@ export default function Transactions() {
                 <Input
                   placeholder="Search transactions..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-8 w-64"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-40">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
@@ -202,7 +217,7 @@ export default function Transactions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedFilteredTransactions.map((transaction) => (
+              {paginatedTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>
                     <div className="flex items-center space-x-2">
@@ -265,11 +280,11 @@ export default function Transactions() {
                   </TableCell>
                 </TableRow>
               ))}
-              {paginatedFilteredTransactions.length === 0 && (
+              {paginatedTransactions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-gray-500">
-                      {searchTerm || statusFilter !== "all"
+                      {hasFilters
                         ? "No transactions match your search criteria."
                         : "No transactions found."}
                     </div>
@@ -280,11 +295,13 @@ export default function Transactions() {
           </Table>
 
           {/* Pagination */}
-          {filteredTransactions.length > itemsPerPage && (
+          {(hasFilters ? filteredTransactions.length > itemsPerPage : totalTransactions > itemsPerPage) && (
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-gray-500">
-                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredTransactions.length)} to{" "}
-                {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} filtered transactions
+                {hasFilters 
+                  ? `Showing ${Math.min((currentPage - 1) * itemsPerPage + 1, filteredTransactions.length)} to ${Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of ${filteredTransactions.length} filtered transactions`
+                  : `Showing ${Math.min((currentPage - 1) * itemsPerPage + 1, totalTransactions)} to ${Math.min(currentPage * itemsPerPage, totalTransactions)} of ${totalTransactions} transactions`
+                }
               </div>
               <div className="flex items-center space-x-2">
                 <Button
@@ -298,9 +315,10 @@ export default function Transactions() {
                 </Button>
                 
                 <div className="flex items-center space-x-1">
-                  {Array.from({ length: Math.min(5, filteredTotalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, hasFilters ? filteredTotalPages : totalPages) }, (_, i) => {
                     const page = Math.max(1, currentPage - 2) + i;
-                    if (page > filteredTotalPages) return null;
+                    const maxPages = hasFilters ? filteredTotalPages : totalPages;
+                    if (page > maxPages) return null;
                     
                     return (
                       <Button
@@ -320,7 +338,7 @@ export default function Transactions() {
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= filteredTotalPages}
+                  disabled={currentPage >= (hasFilters ? filteredTotalPages : totalPages)}
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />
