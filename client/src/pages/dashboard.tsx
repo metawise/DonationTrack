@@ -186,8 +186,8 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ))
-                ) : (
-                  recentTransactions?.map((transaction) => (
+                ) : recentTransactions.length > 0 ? (
+                  recentTransactions.map((transaction) => (
                     <tr 
                       key={transaction.id} 
                       className="hover:bg-gray-50 cursor-pointer"
@@ -200,10 +200,10 @@ export default function Dashboard() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {transaction.customer.firstName} {transaction.customer.lastName}
+                              {transaction.customer?.firstName || 'Unknown'} {transaction.customer?.lastName || 'Donor'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {transaction.customer.email}
+                              {transaction.customer?.email || transaction.emailAddress || 'No email'}
                             </div>
                             <div className="text-xs text-gray-400 font-mono">
                               TX: {transaction.id.length > 16 
@@ -237,6 +237,14 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center">
+                      <div className="text-gray-500">
+                        No recent transactions found.
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

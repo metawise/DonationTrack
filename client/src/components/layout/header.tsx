@@ -57,8 +57,11 @@ export function Header() {
                   // Clear any session storage or local storage if needed
                   sessionStorage.clear();
                   localStorage.clear();
-                  // Redirect to login page or reload
-                  window.location.href = '/';
+                  // Show logout message and reload after delay
+                  alert('Logged out successfully');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 500);
                 }}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
