@@ -71,34 +71,34 @@ export class DatabaseStorage implements IStorage {
     // Get consolidated customers with separate one-time and recurring donation rows
     const consolidatedQuery = db
       .select({
-        id: sql<string>`MIN(c."id")`,
-        externalCustomerId: sql<string>`STRING_AGG(DISTINCT c."external_customer_id", ',')`,
-        firstName: sql<string>`MIN(c."first_name")`,
-        lastName: sql<string>`MIN(c."last_name")`,
-        email: sql<string>`MIN(c."email")`,
-        phone: sql<string>`MIN(c."phone")`,
-        street1: sql<string>`MIN(c."street1")`,
-        street2: sql<string>`MIN(c."street2")`,
-        city: sql<string>`MIN(c."city")`,
-        state: sql<string>`MIN(c."state")`,
-        postalCode: sql<string>`MIN(c."postal_code")`,
-        country: sql<string>`MIN(c."country")`,
+        id: sql<string>`MIN(${customers.id})`,
+        externalCustomerId: sql<string>`STRING_AGG(DISTINCT ${customers.externalCustomerId}, ',')`,
+        firstName: sql<string>`MIN(${customers.firstName})`,
+        lastName: sql<string>`MIN(${customers.lastName})`,
+        email: sql<string>`MIN(${customers.email})`,
+        phone: sql<string>`MIN(${customers.phone})`,
+        street1: sql<string>`MIN(${customers.street1})`,
+        street2: sql<string>`MIN(${customers.street2})`,
+        city: sql<string>`MIN(${customers.city})`,
+        state: sql<string>`MIN(${customers.state})`,
+        postalCode: sql<string>`MIN(${customers.postalCode})`,
+        country: sql<string>`MIN(${customers.country})`,
         // One-time donations (no subscription_id)
-        oneTimeTotal: sql<number>`COALESCE(SUM(CASE WHEN t."subscription_id" IS NULL THEN t."amount" ELSE 0 END), 0)`,
-        oneTimeCount: sql<number>`COUNT(CASE WHEN t."subscription_id" IS NULL THEN t."id" END)`,
+        oneTimeTotal: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.subscriptionId} IS NULL THEN ${transactions.amount} ELSE 0 END), 0)`,
+        oneTimeCount: sql<number>`COUNT(CASE WHEN ${transactions.subscriptionId} IS NULL THEN ${transactions.id} END)`,
         // Recurring donations (with subscription_id)
-        recurringTotal: sql<number>`COALESCE(SUM(CASE WHEN t."subscription_id" IS NOT NULL THEN t."amount" ELSE 0 END), 0)`,
-        recurringCount: sql<number>`COUNT(CASE WHEN t."subscription_id" IS NOT NULL THEN t."id" END)`,
-        lastSyncAt: sql<Date | null>`MAX(c."last_sync_at")`,
-        createdAt: sql<Date>`MIN(c."created_at")`,
-        updatedAt: sql<Date>`MAX(c."updated_at")`,
+        recurringTotal: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.subscriptionId} IS NOT NULL THEN ${transactions.amount} ELSE 0 END), 0)`,
+        recurringCount: sql<number>`COUNT(CASE WHEN ${transactions.subscriptionId} IS NOT NULL THEN ${transactions.id} END)`,
+        lastSyncAt: sql<Date | null>`MAX(${customers.lastSyncAt})`,
+        createdAt: sql<Date>`MIN(${customers.createdAt})`,
+        updatedAt: sql<Date>`MAX(${customers.updatedAt})`,
       })
-      .from(customers.as('c'))
-      .leftJoin(transactions.as('t'), eq(sql`c."id"`, sql`t."customer_id"`))
+      .from(customers)
+      .leftJoin(transactions, eq(customers.id, transactions.customerId))
       .groupBy(
-        sql`COALESCE(c."email", 'no-email-' || c."first_name" || '-' || c."last_name")`
+        sql`COALESCE(${customers.email}, 'no-email-' || ${customers.firstName} || '-' || ${customers.lastName})`
       )
-      .orderBy(desc(sql`MAX(c."updated_at")`));
+      .orderBy(desc(sql`MAX(${customers.updatedAt})`));
 
     if (page && limit) {
       const offset = (page - 1) * limit;

@@ -151,7 +151,11 @@ export default function Transactions() {
         <div className="flex items-center space-x-2">
           <ArrowLeftRight className="h-5 w-5 text-jfj-blue" />
           <h1 className="text-2xl font-bold">Transactions</h1>
-          <Badge variant="outline">{totalTransactions} total</Badge>
+          <Badge variant="outline">
+            {searchTerm || statusFilter !== "all" 
+              ? `${filteredTransactions.length} filtered` 
+              : `${totalTransactions} total`}
+          </Badge>
         </div>
       </div>
 
