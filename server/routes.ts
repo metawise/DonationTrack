@@ -238,9 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await sendAuthEmail(email, otp, staffMember.firstName);
         res.json({ 
           message: "Verification code sent successfully",
-          email: email,
-          // In development, include OTP in response for testing
-          ...(process.env.NODE_ENV === 'development' && { otp })
+          email: email
         });
       } catch (emailError) {
         console.error('Email sending failed:', emailError);

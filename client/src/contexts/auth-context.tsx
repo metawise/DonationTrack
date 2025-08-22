@@ -21,17 +21,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const { data: authData, isLoading, error } = useQuery({
+  const { data: authData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: async () => {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include', // Important for session cookies
+      });
       if (!response.ok) {
         throw new Error('Not authenticated');
       }
       return response.json();
     },
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always check for fresh auth state
   });
 
   useEffect(() => {

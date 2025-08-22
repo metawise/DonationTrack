@@ -60,17 +60,8 @@ export default function Login() {
       setStep("otp");
       toast({
         title: "Verification Code Sent",
-        description: `Code sent to ${data.email}. Check server console for testing.`,
+        description: `Please check your email ${data.email} for the 6-digit code.`,
       });
-      // In development, show OTP in toast for testing
-      if (data.otp && process.env.NODE_ENV === 'development') {
-        setTimeout(() => {
-          toast({
-            title: "Development Mode",
-            description: `Test OTP: ${data.otp}`,
-          });
-        }, 1000);
-      }
     },
     onError: (error: any) => {
       toast({
@@ -104,8 +95,10 @@ export default function Login() {
         title: "Login Successful",
         description: `Welcome ${data.user?.firstName || 'back'} to the donation management system.`,
       });
-      // Redirect to dashboard - session is handled by server
-      window.location.href = '/';
+      // Force page reload to trigger auth context refresh
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     },
     onError: (error: any) => {
       toast({
@@ -240,7 +233,7 @@ export default function Login() {
                     Use Different Email
                   </Button>
                   <p className="text-sm text-gray-600">
-                    Development Mode: Check server console for OTP code.
+                    Didn't receive the code? Check your spam folder or try again.
                   </p>
                 </div>
               </div>
