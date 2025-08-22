@@ -74,7 +74,7 @@ app.use((req, res, next) => {
       await scheduler.initializeScheduler();
       log("Scheduler initialized successfully");
     } catch (error) {
-      log("Failed to initialize scheduler:", error);
+      log(`Failed to initialize scheduler: ${String(error)}`);
     }
   });
 })();

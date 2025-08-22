@@ -6,7 +6,8 @@ import { pool } from "./db";
 import { storage } from "./storage";
 import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
 import { myWellSync } from "./services/mywell-sync";
-import { sendAuthEmail } from "./services/email";
+import { sendAuthEmail, sendPasswordResetEmail } from "./services/email";
+import { scheduler } from "./services/scheduler";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
@@ -506,12 +507,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { email } = req.body;
       const authCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      const sent = await sendAuthEmail(email, authCode);
-      
-      if (sent) {
+      try {
+        await sendAuthEmail(email, authCode, 'User');
         // In a real app, you'd store this code temporarily for verification
         res.json({ message: "Authentication code sent successfully" });
-      } else {
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
         res.status(500).json({ error: "Failed to send authentication code" });
       }
     } catch (error) {
@@ -524,11 +525,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { email } = req.body;
       const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${randomUUID()}`;
       
-      const sent = await sendPasswordResetEmail(email, resetLink);
-      
-      if (sent) {
+      try {
+        await sendPasswordResetEmail(email, resetLink);
         res.json({ message: "Password reset link sent successfully" });
-      } else {
+      } catch (emailError) {
+        console.error('Password reset email failed:', emailError);
         res.status(500).json({ error: "Failed to send password reset email" });
       }
     } catch (error) {
