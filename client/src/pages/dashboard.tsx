@@ -21,10 +21,25 @@ export default function Dashboard() {
   });
 
   const { data: transactionsResponse, isLoading: transactionsLoading } = useQuery<{transactions: TransactionWithCustomer[], total: number}>({
-    queryKey: ['/api/transactions', 1, 100], // Get first 100 transactions
+    queryKey: ['/api/transactions', 1, 5], // Get first 5 transactions for recent list
+    queryFn: async () => {
+      const url = new URL('/api/transactions', window.location.origin);
+      url.searchParams.set('page', '1');
+      url.searchParams.set('limit', '5');
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error('Failed to fetch transactions');
+      return res.json();
+    },
   });
   
-  const recentTransactions = transactionsResponse?.transactions?.slice(0, 5) || [];
+  const recentTransactions = transactionsResponse?.transactions || [];
+
+  // Debug log to see what we're getting
+  console.log('Dashboard transactions:', { 
+    response: transactionsResponse, 
+    transactions: recentTransactions,
+    loading: transactionsLoading 
+  });
 
   const handleViewTransaction = (transaction: TransactionWithCustomer) => {
     setSelectedTransaction(transaction);
