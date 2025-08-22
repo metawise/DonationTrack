@@ -72,6 +72,13 @@ export default function Transactions() {
     return matchesSearch && matchesStatus;
   });
 
+  // Adjust pagination based on filtered results
+  const filteredTotalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const paginatedFilteredTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const formatAmount = (amount: number) => {
     return (amount / 100).toLocaleString("en-US", {
       style: "currency",
@@ -191,7 +198,7 @@ export default function Transactions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction) => (
+              {paginatedFilteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>
                     <div className="flex items-center space-x-2">
@@ -254,7 +261,7 @@ export default function Transactions() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredTransactions.length === 0 && (
+              {paginatedFilteredTransactions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-gray-500">
@@ -269,52 +276,54 @@ export default function Transactions() {
           </Table>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between mt-6">
-            <div className="text-sm text-gray-500">
-              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalTransactions)} to{" "}
-              {Math.min(currentPage * itemsPerPage, totalTransactions)} of {totalTransactions} transactions
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = Math.max(1, currentPage - 2) + i;
-                  if (page > totalPages) return null;
-                  
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handlePageChange(page)}
-                      className="w-8"
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
+          {filteredTransactions.length > itemsPerPage && (
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-gray-500">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredTransactions.length)} to{" "}
+                {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} filtered transactions
               </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, filteredTotalPages) }, (_, i) => {
+                    const page = Math.max(1, currentPage - 2) + i;
+                    if (page > filteredTotalPages) return null;
+                    
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(page)}
+                        className="w-8"
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= filteredTotalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

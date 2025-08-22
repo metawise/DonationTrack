@@ -44,7 +44,7 @@ export function Header() {
                       <User className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium text-gray-700">Staff Member</span>
+                  <span className="text-sm font-medium text-gray-700">Admin User</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

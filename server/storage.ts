@@ -67,34 +67,38 @@ export class DatabaseStorage implements IStorage {
     return { customers: customersResult, total: customersResult.length };
   }
 
-  async getConsolidatedCustomers(page?: number, limit?: number): Promise<{ customers: Customer[]; total: number }> {
-    // Get consolidated customers by grouping by email and first/last name
+  async getConsolidatedCustomers(page?: number, limit?: number): Promise<{ customers: any[]; total: number }> {
+    // Get consolidated customers with separate one-time and recurring donation rows
     const consolidatedQuery = db
       .select({
-        id: sql<string>`MIN("id")`,
-        externalCustomerId: sql<string>`STRING_AGG(DISTINCT "external_customer_id", ',')`,
-        firstName: sql<string>`MIN("first_name")`,
-        lastName: sql<string>`MIN("last_name")`,
-        email: sql<string>`MIN("email")`,
-        phone: sql<string>`MIN("phone")`,
-        street1: sql<string>`MIN("street1")`,
-        street2: sql<string>`MIN("street2")`,
-        city: sql<string>`MIN("city")`,
-        state: sql<string>`MIN("state")`,
-        postalCode: sql<string>`MIN("postal_code")`,
-        country: sql<string>`MIN("country")`,
-        customerType: sql<string>`CASE WHEN COUNT(*) > 1 THEN 'recurring' ELSE MIN("customer_type") END`,
-        totalDonated: sql<number>`SUM("total_donated")`,
-        transactionCount: sql<number>`SUM("transaction_count")`,
-        lastSyncAt: sql<Date | null>`MAX("last_sync_at")`,
-        createdAt: sql<Date>`MIN("created_at")`,
-        updatedAt: sql<Date>`MAX("updated_at")`,
+        id: sql<string>`MIN(c."id")`,
+        externalCustomerId: sql<string>`STRING_AGG(DISTINCT c."external_customer_id", ',')`,
+        firstName: sql<string>`MIN(c."first_name")`,
+        lastName: sql<string>`MIN(c."last_name")`,
+        email: sql<string>`MIN(c."email")`,
+        phone: sql<string>`MIN(c."phone")`,
+        street1: sql<string>`MIN(c."street1")`,
+        street2: sql<string>`MIN(c."street2")`,
+        city: sql<string>`MIN(c."city")`,
+        state: sql<string>`MIN(c."state")`,
+        postalCode: sql<string>`MIN(c."postal_code")`,
+        country: sql<string>`MIN(c."country")`,
+        // One-time donations (no subscription_id)
+        oneTimeTotal: sql<number>`COALESCE(SUM(CASE WHEN t."subscription_id" IS NULL THEN t."amount" ELSE 0 END), 0)`,
+        oneTimeCount: sql<number>`COUNT(CASE WHEN t."subscription_id" IS NULL THEN t."id" END)`,
+        // Recurring donations (with subscription_id)
+        recurringTotal: sql<number>`COALESCE(SUM(CASE WHEN t."subscription_id" IS NOT NULL THEN t."amount" ELSE 0 END), 0)`,
+        recurringCount: sql<number>`COUNT(CASE WHEN t."subscription_id" IS NOT NULL THEN t."id" END)`,
+        lastSyncAt: sql<Date | null>`MAX(c."last_sync_at")`,
+        createdAt: sql<Date>`MIN(c."created_at")`,
+        updatedAt: sql<Date>`MAX(c."updated_at")`,
       })
-      .from(customers)
+      .from(customers.as('c'))
+      .leftJoin(transactions.as('t'), eq(sql`c."id"`, sql`t."customer_id"`))
       .groupBy(
-        sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")`
+        sql`COALESCE(c."email", 'no-email-' || c."first_name" || '-' || c."last_name")`
       )
-      .orderBy(desc(sql`MAX("updated_at")`));
+      .orderBy(desc(sql`MAX(c."updated_at")`));
 
     if (page && limit) {
       const offset = (page - 1) * limit;
@@ -112,11 +116,75 @@ export class DatabaseStorage implements IStorage {
         );
       
       const [{ count }] = await countQuery;
-      return { customers: customersResult as Customer[], total: Number(count) };
+      
+      // Transform results to create separate rows for one-time and recurring
+      const expandedResults = [];
+      for (const customer of customersResult) {
+        if (customer.oneTimeCount > 0) {
+          expandedResults.push({
+            ...customer,
+            customerType: 'one-time',
+            totalDonated: customer.oneTimeTotal,
+            transactionCount: customer.oneTimeCount,
+            rowId: `${customer.id}-onetime`
+          });
+        }
+        if (customer.recurringCount > 0) {
+          expandedResults.push({
+            ...customer,
+            customerType: 'recurring',
+            totalDonated: customer.recurringTotal,
+            transactionCount: customer.recurringCount,
+            rowId: `${customer.id}-recurring`
+          });
+        }
+        if (customer.oneTimeCount === 0 && customer.recurringCount === 0) {
+          expandedResults.push({
+            ...customer,
+            customerType: 'one-time',
+            totalDonated: 0,
+            transactionCount: 0,
+            rowId: customer.id
+          });
+        }
+      }
+      
+      return { customers: expandedResults, total: Number(count) };
     }
     
     const customersResult = await consolidatedQuery;
-    return { customers: customersResult as Customer[], total: customersResult.length };
+    const expandedResults = [];
+    for (const customer of customersResult) {
+      if (customer.oneTimeCount > 0) {
+        expandedResults.push({
+          ...customer,
+          customerType: 'one-time',
+          totalDonated: customer.oneTimeTotal,
+          transactionCount: customer.oneTimeCount,
+          rowId: `${customer.id}-onetime`
+        });
+      }
+      if (customer.recurringCount > 0) {
+        expandedResults.push({
+          ...customer,
+          customerType: 'recurring',
+          totalDonated: customer.recurringTotal,
+          transactionCount: customer.recurringCount,
+          rowId: `${customer.id}-recurring`
+        });
+      }
+      if (customer.oneTimeCount === 0 && customer.recurringCount === 0) {
+        expandedResults.push({
+          ...customer,
+          customerType: 'one-time',
+          totalDonated: 0,
+          transactionCount: 0,
+          rowId: customer.id
+        });
+      }
+    }
+    
+    return { customers: expandedResults, total: expandedResults.length };
   }
 
   async findOrCreateCustomer(customerData: InsertCustomer): Promise<Customer> {
