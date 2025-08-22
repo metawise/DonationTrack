@@ -115,11 +115,27 @@ class SchedulerService {
         })
         .where(eq(syncConfig.name, 'mywell_transactions'));
       
-      // Sync last 7 days to catch any updates
+      // Get last sync date and sync from then, or last 24 hours if no previous sync
+      const [lastSyncConfig] = await db
+        .select()
+        .from(syncConfig)
+        .where(eq(syncConfig.name, 'mywell_transactions'))
+        .limit(1);
+      
       const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
+      let startDate = new Date();
+      
+      if (lastSyncConfig?.lastSyncAt) {
+        // Start from last successful sync date
+        startDate = new Date(lastSyncConfig.lastSyncAt);
+        startDate.setDate(startDate.getDate() - 1); // Go back 1 day to catch any updates
+      } else {
+        // No previous sync, go back 24 hours
+        startDate.setDate(startDate.getDate() - 1);
+      }
+      
       const startDateStr = startDate.toISOString().split('T')[0];
+      console.log(`📅 Syncing from ${startDateStr} to ${endDate}`);
 
       const result = await myWellSync.syncTransactions(startDateStr, endDate);
       

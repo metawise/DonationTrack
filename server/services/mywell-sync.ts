@@ -85,19 +85,28 @@ export class MyWellSyncService {
     if (!billingAddress || !customerId) return null;
 
     try {
+      // Extract email from multiple sources with priority order  
+      const email = myWellTransaction.emailAddress || 
+                   billingAddress?.email || 
+                   myWellTransaction.responseBody?.email ||
+                   myWellTransaction.responseBody?.customer?.email ||
+                   null;
+      
+      console.log(`📧 Processing customer: ${billingAddress?.firstName} ${billingAddress?.lastName}, Email: ${email || 'No email found'}`);
+      
       const customerData = {
         id: randomUUID(),
         externalCustomerId: customerId,
-        firstName: billingAddress.firstName || '',
-        lastName: billingAddress.lastName || '',
-        email: billingAddress.email || myWellTransaction.emailAddress || null,
-        phone: billingAddress.phone || null,
-        street1: billingAddress.street1 || null,
-        street2: billingAddress.street2 || null,
-        city: billingAddress.city || null,
-        state: billingAddress.state || null,
-        postalCode: billingAddress.postalCode || null,
-        country: billingAddress.country || null,
+        firstName: billingAddress?.firstName || '',
+        lastName: billingAddress?.lastName || '',
+        email: email,
+        phone: billingAddress?.phone || null,
+        street1: billingAddress?.street1 || null,
+        street2: billingAddress?.street2 || null,
+        city: billingAddress?.city || null,
+        state: billingAddress?.state || null,
+        postalCode: billingAddress?.postalCode || null,
+        country: billingAddress?.country || null,
         customerType: 'one-time',
         totalDonated: 0,
         transactionCount: 0,
@@ -192,6 +201,16 @@ export class MyWellSyncService {
         // Process each transaction
         for (const myWellTransaction of response.transactions) {
           try {
+            // Log transaction data for debugging
+            if (totalSynced < 3) { // Only log first 3 for debugging
+              console.log(`🔍 Transaction sample:`, {
+                id: myWellTransaction.id,
+                emailAddress: myWellTransaction.emailAddress,
+                billingEmail: myWellTransaction.billingAddress?.email,
+                hasResponseBody: !!myWellTransaction.responseBody
+              });
+            }
+            
             // First, upsert the customer
             const customer = await this.upsertCustomer(myWellTransaction);
             
