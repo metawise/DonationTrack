@@ -19,9 +19,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   });
 
   useEffect(() => {
+    // Only redirect if we're sure the user is not authenticated (not loading and definitely not authenticated)
     if (!isLoading && !isAuthenticated) {
       console.log('🚪 Redirecting to login: not authenticated');
-      window.location.replace('/login');
+      // Add a small delay to prevent race conditions
+      setTimeout(() => {
+        window.location.replace('/login');
+      }, 100);
     }
   }, [isAuthenticated, isLoading]);
 

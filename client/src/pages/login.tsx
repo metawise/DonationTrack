@@ -95,11 +95,13 @@ export default function Login() {
         title: "Login Successful",
         description: `Welcome ${data.user?.firstName || 'back'} to the donation management system.`,
       });
-      // Clear forms and redirect immediately
+      // Clear forms and redirect after a short delay to ensure session is set
       emailForm.reset();
       otpForm.reset();
-      // Use window.location.replace to ensure proper redirect
-      window.location.replace('/');
+      // Add delay to ensure session is properly established
+      setTimeout(() => {
+        window.location.replace('/');
+      }, 250);
     },
     onError: (error: any) => {
       toast({

@@ -20,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { data: authData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/auth/me'],
@@ -46,9 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (authData?.user) {
       console.log('🔑 Auth context: User authenticated', authData.user);
       setUser(authData.user);
+      setIsInitialized(true);
     } else if (error) {
       console.log('❌ Auth context: Authentication failed', error.message);
       setUser(null);
+      setIsInitialized(true);
     }
   }, [authData, error]);
 
@@ -69,9 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAuthenticated = !!user;
+  const authIsLoading = isLoading || !isInitialized;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading: authIsLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );
