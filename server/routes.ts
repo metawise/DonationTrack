@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
 import { myWellSync } from "./services/mywell-sync";
-import { sendAuthEmail, sendPasswordResetEmail } from "./services/email";
+import { sendAuthEmail } from "./services/email";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
@@ -191,12 +191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.email = email;
       req.session.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
       
-      // Send email with OTP
+          // Send email with OTP
       try {
         await sendAuthEmail(email, otp, staffMember.firstName);
         res.json({ 
           message: "Verification code sent successfully",
-          email: email 
+          email: email,
+          // In development, include OTP in response for testing
+          ...(process.env.NODE_ENV === 'development' && { otp })
         });
       } catch (emailError) {
         console.error('Email sending failed:', emailError);

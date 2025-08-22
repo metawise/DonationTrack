@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import { StaffModal } from "@/components/modals/staff-modal";
+import { useAuth } from "@/contexts/auth-context";
 
 export function Header() {
   const [location] = useLocation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const { user, logout } = useAuth();
   
   const currentPage = NAVIGATION_ITEMS.find(item => item.path === location);
   
@@ -45,8 +47,7 @@ export function Header() {
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-gray-700">
-                    {/* TODO: Replace with actual logged-in user name */}
-                    Sarah Johnson
+                    {user?.firstName} {user?.lastName}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -56,20 +57,7 @@ export function Header() {
                   Edit Profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600" onClick={async () => {
-                  try {
-                    // Call logout API
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    // Clear local storage
-                    sessionStorage.clear();
-                    localStorage.clear();
-                    // Redirect to login page
-                    window.location.href = '/login';
-                  } catch (error) {
-                    // Fallback: just redirect to login
-                    window.location.href = '/login';
-                  }
-                }}>
+                <DropdownMenuItem className="text-red-600" onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>
