@@ -53,7 +53,13 @@ export function Header() {
                   Edit Profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600" onClick={() => window.location.reload()}>
+                <DropdownMenuItem className="text-red-600" onClick={() => {
+                  // Clear any session storage or local storage if needed
+                  sessionStorage.clear();
+                  localStorage.clear();
+                  // Redirect to login page or reload
+                  window.location.href = '/';
+                }}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

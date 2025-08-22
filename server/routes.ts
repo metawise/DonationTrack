@@ -188,7 +188,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/staff", async (req, res) => {
     try {
-      const staffData = insertStaffSchema.parse(req.body);
+      // Convert hireDate string to Date object if needed
+      const requestData = {
+        ...req.body,
+        hireDate: req.body.hireDate ? new Date(req.body.hireDate) : new Date()
+      };
+      
+      const staffData = insertStaffSchema.parse(requestData);
       const staff = await storage.createStaff(staffData);
       res.status(201).json(staff);
     } catch (error) {

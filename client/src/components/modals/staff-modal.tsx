@@ -45,7 +45,12 @@ export function StaffModal({ staff, isOpen, onClose, mode = "edit", onSave }: St
 
   const createStaffMutation = useMutation({
     mutationFn: async (data: StaffFormData) => {
-      const response = await apiRequest('POST', '/api/staff', data);
+      // Convert hireDate to ISO string for API
+      const payload = {
+        ...data,
+        hireDate: data.hireDate instanceof Date ? data.hireDate.toISOString() : data.hireDate
+      };
+      const response = await apiRequest('POST', '/api/staff', payload);
       return response.json();
     },
     onSuccess: () => {
@@ -67,7 +72,12 @@ export function StaffModal({ staff, isOpen, onClose, mode = "edit", onSave }: St
 
   const updateStaffMutation = useMutation({
     mutationFn: async (data: StaffFormData) => {
-      const response = await apiRequest('PUT', `/api/staff/${staff?.id}`, data);
+      // Convert hireDate to ISO string for API
+      const payload = {
+        ...data,
+        hireDate: data.hireDate instanceof Date ? data.hireDate.toISOString() : data.hireDate
+      };
+      const response = await apiRequest('PUT', `/api/staff/${staff?.id}`, payload);
       return response.json();
     },
     onSuccess: () => {
