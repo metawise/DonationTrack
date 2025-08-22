@@ -44,7 +44,10 @@ export function Header() {
                       <User className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium text-gray-700">Admin User</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {/* TODO: Replace with actual logged-in user name */}
+                    Sarah Johnson
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -53,15 +56,19 @@ export function Header() {
                   Edit Profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600" onClick={() => {
-                  // Clear any session storage or local storage if needed
-                  sessionStorage.clear();
-                  localStorage.clear();
-                  // Show logout message and reload after delay
-                  alert('Logged out successfully');
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 500);
+                <DropdownMenuItem className="text-red-600" onClick={async () => {
+                  try {
+                    // Call logout API
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    // Clear local storage
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    // Redirect to login page
+                    window.location.href = '/login';
+                  } catch (error) {
+                    // Fallback: just redirect to login
+                    window.location.href = '/login';
+                  }
                 }}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout

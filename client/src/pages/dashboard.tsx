@@ -34,12 +34,8 @@ export default function Dashboard() {
   
   const recentTransactions = transactionsResponse?.transactions || [];
 
-  // Debug log to see what we're getting
-  console.log('Dashboard transactions:', { 
-    response: transactionsResponse, 
-    transactions: recentTransactions,
-    loading: transactionsLoading 
-  });
+  // Debug log to see what we're getting - remove in production
+  // console.log('Dashboard transactions:', { response: transactionsResponse, transactions: recentTransactions, loading: transactionsLoading });
 
   const handleViewTransaction = (transaction: TransactionWithCustomer) => {
     setSelectedTransaction(transaction);
@@ -215,10 +211,10 @@ export default function Dashboard() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {transaction.customer?.firstName || 'Unknown'} {transaction.customer?.lastName || 'Donor'}
+                              {transaction.customer?.firstName || transaction.billingAddress?.firstName || 'Unknown'} {transaction.customer?.lastName || transaction.billingAddress?.lastName || 'Donor'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {transaction.customer?.email || transaction.emailAddress || 'No email'}
+                              {transaction.customer?.email || transaction.billingAddress?.email || transaction.emailAddress || 'No email'}
                             </div>
                             <div className="text-xs text-gray-400 font-mono">
                               TX: {transaction.id.length > 16 

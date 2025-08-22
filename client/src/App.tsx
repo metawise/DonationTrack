@@ -11,6 +11,7 @@ import CreateDonation from "@/pages/create-donation";
 import Staff from "@/pages/staff";
 import Sync from "@/pages/sync";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/staff" component={Staff} />
       <Route path="/sync" component={Sync} />
       <Route path="/create-donation" component={CreateDonation} />
+      <Route path="/login" component={Login} />
       <Route component={NotFound} />
     </Switch>
   );

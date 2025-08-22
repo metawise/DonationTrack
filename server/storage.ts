@@ -352,6 +352,11 @@ export class DatabaseStorage implements IStorage {
     return staffMember || undefined;
   }
 
+  async getStaffByEmail(email: string): Promise<Staff | undefined> {
+    const [staffMember] = await db.select().from(staff).where(eq(staff.email, email)).limit(1);
+    return staffMember || undefined;
+  }
+
   async getAllStaff(): Promise<Staff[]> {
     return await db.select().from(staff).orderBy(staff.lastName);
   }

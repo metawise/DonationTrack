@@ -164,6 +164,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Authentication endpoints
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      // Validate email format
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: "Invalid email address" });
+      }
+      
+      // Check if email belongs to staff member
+      const staffMember = await storage.getStaffByEmail(email);
+      if (!staffMember) {
+        return res.status(404).json({ error: "Email not found in staff directory" });
+      }
+      
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store OTP in session/memory (in production, use Redis or database)
+      if (!req.session) {
+        req.session = {};
+      }
+      req.session.otp = otp;
+      req.session.email = email;
+      req.session.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      
+      // Send email with OTP
+      try {
+        await sendAuthEmail(email, otp, staffMember.firstName);
+        res.json({ 
+          message: "Verification code sent successfully",
+          email: email 
+        });
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        res.status(500).json({ error: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      res.status(500).json({ error: "Failed to send verification code" });
+    }
+  });
+
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      
+      if (!req.session || !req.session.otp || !req.session.email) {
+        return res.status(400).json({ error: "No verification session found" });
+      }
+      
+      // Check if OTP expired
+      if (Date.now() > req.session.otpExpires) {
+        delete req.session.otp;
+        delete req.session.email;
+        delete req.session.otpExpires;
+        return res.status(400).json({ error: "Verification code has expired" });
+      }
+      
+      // Check if email matches and OTP is correct
+      if (req.session.email !== email || req.session.otp !== code) {
+        return res.status(400).json({ error: "Invalid verification code" });
+      }
+      
+      // Get staff member details
+      const staffMember = await storage.getStaffByEmail(email);
+      if (!staffMember) {
+        return res.status(404).json({ error: "Staff member not found" });
+      }
+      
+      // Clean up OTP from session
+      delete req.session.otp;
+      delete req.session.otpExpires;
+      
+      // Set authenticated user in session
+      req.session.userId = staffMember.id;
+      req.session.user = {
+        id: staffMember.id,
+        firstName: staffMember.firstName,
+        lastName: staffMember.lastName,
+        email: staffMember.email,
+        role: staffMember.role
+      };
+      
+      res.json({
+        message: "Login successful",
+        user: req.session.user,
+        token: "session-based" // Could generate JWT here if needed
+      });
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      res.status(500).json({ error: "Failed to verify code" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            return res.status(500).json({ error: "Failed to logout" });
+          }
+          res.json({ message: "Logged out successfully" });
+        });
+      } else {
+        res.json({ message: "Already logged out" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to logout" });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    try {
+      if (!req.session?.user) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      res.json({ user: req.session.user });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user info" });
+    }
+  });
+
   // Staff endpoints
   app.get("/api/staff", async (req, res) => {
     try {
