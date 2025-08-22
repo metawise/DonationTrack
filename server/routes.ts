@@ -478,10 +478,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/sync/config", async (req, res) => {
     try {
       const { syncFrequencyMinutes } = req.body;
+      console.log(`🔧 Updating sync frequency to ${syncFrequencyMinutes} minutes`);
       await myWellSync.updateSyncFrequency(syncFrequencyMinutes);
       res.json({ message: "Sync frequency updated successfully" });
     } catch (error) {
+      console.error('❌ Failed to update sync frequency:', error);
       res.status(500).json({ error: "Failed to update sync configuration" });
+    }
+  });
+
+  app.get("/api/sync/status", async (req, res) => {
+    try {
+      const schedulerInfo = scheduler.getSchedulerInfo();
+      const jobStatus = scheduler.getJobStatus();
+      res.json({ 
+        scheduler: schedulerInfo,
+        jobs: jobStatus
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get scheduler status" });
     }
   });
 

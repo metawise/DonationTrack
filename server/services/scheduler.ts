@@ -2,7 +2,7 @@ import * as cron from 'node-cron';
 import { myWellSync } from './mywell-sync';
 import { db } from '../db';
 import { syncConfig } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 class SchedulerService {
   private scheduledJobs: Map<string, cron.ScheduledTask> = new Map();
@@ -66,32 +66,54 @@ class SchedulerService {
       const cronExpression = this.getCronExpression(config.syncFrequencyMinutes);
       
       const job = cron.schedule(cronExpression, async () => {
+        console.log(`🔄 Auto sync triggered - frequency: ${config.syncFrequencyMinutes} minutes`);
         await this.runMyWellSync();
       }, {
         timezone: "America/New_York"
       });
 
-      job.start();
       this.scheduledJobs.set('mywell_sync', job);
-
-      console.log(`MyWell sync scheduled to run every ${config.syncFrequencyMinutes} minutes`);
+      
+      console.log(`✅ MyWell sync scheduled to run every ${config.syncFrequencyMinutes} minutes using cron: ${cronExpression}`);
     } catch (error) {
       console.error('Error scheduling MyWell sync:', error);
     }
   }
 
   private getCronExpression(minutes: number): string {
+    console.log(`Creating cron expression for ${minutes} minutes`);
+    
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
-      return `0 */${hours} * * *`; // Every X hours
+      const cronExpr = `0 */${hours} * * *`; // Every X hours
+      console.log(`Hourly cron expression: ${cronExpr}`);
+      return cronExpr;
+    } else if (minutes >= 1) {
+      const cronExpr = `*/${minutes} * * * *`; // Every X minutes  
+      console.log(`Minute cron expression: ${cronExpr}`);
+      return cronExpr;
     } else {
-      return `*/${minutes} * * * *`; // Every X minutes
+      // Default to every 5 minutes if invalid
+      const cronExpr = `*/5 * * * *`;
+      console.log(`Default cron expression (5 min): ${cronExpr}`);
+      return cronExpr;
     }
   }
 
   async runMyWellSync() {
     try {
-      console.log('Starting scheduled MyWell sync...');
+      console.log('🔄 Starting scheduled MyWell sync...');
+      
+      // Update sync config to track that sync is starting
+      await db
+        .update(syncConfig)
+        .set({
+          lastSyncAt: new Date(),
+          lastSyncStatus: 'running',
+          lastSyncError: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(syncConfig.name, 'mywell_transactions'));
       
       // Sync last 7 days to catch any updates
       const endDate = new Date().toISOString().split('T')[0];
@@ -102,12 +124,42 @@ class SchedulerService {
       const result = await myWellSync.syncTransactions(startDateStr, endDate);
       
       if (result.success) {
-        console.log(`MyWell sync completed successfully: ${result.totalSynced} records synced`);
+        console.log(`✅ Scheduled MyWell sync completed successfully: ${result.totalSynced} records synced`);
+        
+        // Update sync config with success status
+        await db
+          .update(syncConfig)
+          .set({
+            lastSyncStatus: 'success',
+            totalRecordsSynced: sql`${syncConfig.totalRecordsSynced} + ${result.totalSynced}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(syncConfig.name, 'mywell_transactions'));
       } else {
-        console.error('MyWell sync failed:', result.error);
+        console.error('❌ Scheduled MyWell sync failed:', result.error);
+        
+        // Update sync config with failure status
+        await db
+          .update(syncConfig)
+          .set({
+            lastSyncStatus: 'failed',
+            lastSyncError: result.error || 'Unknown error',
+            updatedAt: new Date(),
+          })
+          .where(eq(syncConfig.name, 'mywell_transactions'));
       }
     } catch (error) {
-      console.error('Error in scheduled MyWell sync:', error);
+      console.error('❌ Error in scheduled MyWell sync:', error);
+      
+      // Update sync config with error status
+      await db
+        .update(syncConfig)
+        .set({
+          lastSyncStatus: 'failed',
+          lastSyncError: error instanceof Error ? error.message : 'Unknown error',
+          updatedAt: new Date(),
+        })
+        .where(eq(syncConfig.name, 'mywell_transactions'));
     }
   }
 
@@ -148,10 +200,24 @@ class SchedulerService {
     const status: { [key: string]: boolean } = {};
     
     this.scheduledJobs.forEach((job, name) => {
-      status[name] = job.running || false;
+      status[name] = job.getStatus() === 'scheduled';
     });
 
+    console.log('📊 Current job status:', status);
     return status;
+  }
+  
+  // Method to get detailed scheduler info for debugging
+  getSchedulerInfo(): { [key: string]: any } {
+    const info: { [key: string]: any } = {};
+    
+    this.scheduledJobs.forEach((job, name) => {
+      info[name] = {
+        status: job.getStatus()
+      };
+    });
+
+    return info;
   }
 }
 
