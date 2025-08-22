@@ -43,12 +43,22 @@ export default function Transactions() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
+  // Determine if we need to fetch all data for client-side filtering
+  const hasFilters = searchTerm || statusFilter !== "all";
+  
   const { data: response, isLoading } = useQuery<TransactionsResponse>({
-    queryKey: ['/api/transactions', currentPage, itemsPerPage],
+    queryKey: ['/api/transactions', hasFilters ? 'all' : currentPage, hasFilters ? 'all' : itemsPerPage],
     queryFn: async () => {
       const url = new URL('/api/transactions', window.location.origin);
-      url.searchParams.set('page', currentPage.toString());
-      url.searchParams.set('limit', itemsPerPage.toString());
+      if (hasFilters) {
+        // Fetch all transactions for client-side filtering
+        url.searchParams.set('page', '1');
+        url.searchParams.set('limit', '1000'); // Large limit to get all data
+      } else {
+        // Use server-side pagination
+        url.searchParams.set('page', currentPage.toString());
+        url.searchParams.set('limit', itemsPerPage.toString());
+      }
       const res = await fetch(url.toString());
       return res.json();
     },
@@ -73,8 +83,6 @@ export default function Transactions() {
   });
 
   // Calculate pagination for filtered results
-  const hasFilters = searchTerm || statusFilter !== "all";
-  const displayTransactions = hasFilters ? filteredTransactions : transactions;
   const filteredTotalPages = hasFilters ? Math.ceil(filteredTransactions.length / itemsPerPage) : totalPages;
   
   // For server-side pagination (no filters) use original transactions
