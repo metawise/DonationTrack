@@ -220,13 +220,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       
-      // Store OTP in session/memory (in production, use Redis or database)
-      if (!req.session) {
-        req.session = {};
-      }
+      // Store OTP in session
       req.session.otp = otp;
       req.session.email = email;
       req.session.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      
+      // Force session save
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
       
           // Send email with OTP
       try {
@@ -251,12 +256,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, code } = req.body;
       
+      console.log('🔍 Verify OTP Debug:', {
+        sessionExists: !!req.session,
+        sessionOtp: req.session?.otp,
+        sessionEmail: req.session?.email,
+        inputEmail: email,
+        inputCode: code,
+        otpExpires: req.session?.otpExpires,
+        currentTime: Date.now()
+      });
+      
       if (!req.session || !req.session.otp || !req.session.email) {
+        console.log('❌ No session data found');
         return res.status(400).json({ error: "No verification session found" });
       }
       
       // Check if OTP expired
-      if (Date.now() > req.session.otpExpires) {
+      if (Date.now() > (req.session.otpExpires || 0)) {
+        console.log('❌ OTP expired');
         delete req.session.otp;
         delete req.session.email;
         delete req.session.otpExpires;
@@ -265,6 +282,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if email matches and OTP is correct
       if (req.session.email !== email || req.session.otp !== code) {
+        console.log('❌ OTP mismatch:', {
+          emailMatch: req.session.email === email,
+          otpMatch: req.session.otp === code,
+          expectedOtp: req.session.otp,
+          receivedOtp: code
+        });
         return res.status(400).json({ error: "Invalid verification code" });
       }
       
@@ -288,10 +311,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: staffMember.role
       };
       
+      console.log('✅ Login successful for:', staffMember.firstName, staffMember.lastName);
+      
+      // Force session save
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      
       res.json({
         message: "Login successful",
         user: req.session.user,
-        token: "session-based" // Could generate JWT here if needed
+        token: "session-based"
       });
     } catch (error) {
       console.error('Verify OTP error:', error);
