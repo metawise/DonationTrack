@@ -13,15 +13,18 @@ import { TransactionDetailModal } from "@/components/modals/transaction-detail-m
 export default function Dashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithCustomer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/metrics'],
   });
 
-  const { data: recentTransactions, isLoading: transactionsLoading } = useQuery<TransactionWithCustomer[]>({
-    queryKey: ['/api/transactions'],
-    select: (data) => data.slice(0, 5), // Show only 5 recent transactions
+  const { data: transactionsResponse, isLoading: transactionsLoading } = useQuery<{transactions: TransactionWithCustomer[], total: number}>({
+    queryKey: ['/api/transactions', 1, 100], // Get first 100 transactions
   });
+  
+  const recentTransactions = transactionsResponse?.transactions?.slice(0, 5) || [];
 
   const handleViewTransaction = (transaction: TransactionWithCustomer) => {
     setSelectedTransaction(transaction);
@@ -190,7 +193,7 @@ export default function Dashboard() {
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => handleViewTransaction(transaction)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                             <User className="h-5 w-5 text-gray-600" />
@@ -202,6 +205,16 @@ export default function Dashboard() {
                             <div className="text-sm text-gray-500">
                               {transaction.customer.email}
                             </div>
+                            <div className="text-xs text-gray-400 font-mono">
+                              TX: {transaction.id.length > 16 
+                                ? `${transaction.id.substring(0, 8)}...${transaction.id.substring(transaction.id.length - 8)}`
+                                : transaction.id}
+                            </div>
+                            {transaction.paymentMethod && (
+                              <div className="text-xs text-gray-400 font-mono">
+                                PM: {transaction.paymentMethod}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

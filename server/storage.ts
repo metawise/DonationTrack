@@ -314,11 +314,17 @@ export class DatabaseStorage implements IStorage {
       .from(transactions)
       .where(eq(transactions.status, 'SETTLED'));
     
-    // Get active subscribers count (customers with subscription transactions)
+    // Get consolidated active subscribers count (customers with multiple records = recurring)
     const [subscribersResult] = await db
-      .select({ count: count() })
-      .from(customers)
-      .where(eq(customers.customerType, 'active-subscriber'));
+      .select({ count: sql<number>`count(*)` })
+      .from(
+        db
+          .select({ groupKey: sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")` })
+          .from(customers)
+          .groupBy(sql`COALESCE("email", 'no-email-' || "first_name" || '-' || "last_name")`)
+          .having(sql`COUNT(*) > 1`)
+          .as('recurring_customers')
+      );
 
     // Get this month's donations
     const firstOfMonth = new Date();

@@ -1,9 +1,15 @@
 import { useLocation } from "wouter";
-import { Bell } from "lucide-react";
+import { Bell, User, Settings, LogOut } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/lib/constants";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useState } from "react";
+import { StaffModal } from "@/components/modals/staff-modal";
 
 export function Header() {
   const [location] = useLocation();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const currentPage = NAVIGATION_ITEMS.find(item => item.path === location);
   
@@ -30,13 +36,44 @@ export function Header() {
             <button className="p-2 text-gray-400 hover:text-gray-600">
               <Bell className="h-5 w-5" />
             </button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-              <span className="text-sm font-medium text-gray-700">Staff Member</span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-jfj-blue text-white">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium text-gray-700">Staff Member</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsProfileModalOpen(true)}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-600" onClick={() => window.location.reload()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
+      
+      {/* Staff Profile Modal */}
+      <StaffModal
+        staff={null}
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSave={(staffData) => {
+          // Handle profile update
+          console.log('Profile updated:', staffData);
+          setIsProfileModalOpen(false);
+        }}
+      />
     </header>
   );
 }

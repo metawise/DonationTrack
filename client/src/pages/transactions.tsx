@@ -10,7 +10,7 @@ import { ArrowLeftRight, Search, DollarSign, Calendar, CreditCard, User, Chevron
 import { useState } from "react";
 import { TransactionDetailModal } from "@/components/modals/transaction-detail-modal";
 
-type Transaction = {
+type TransactionWithCustomer = {
   id: string;
   externalCustomerId: string;
   customerId: string | null;
@@ -31,14 +31,14 @@ type Transaction = {
 };
 
 type TransactionsResponse = {
-  transactions: Transaction[];
+  transactions: TransactionWithCustomer[];
   total: number;
 };
 
 export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithCustomer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -83,7 +83,7 @@ export default function Transactions() {
     setCurrentPage(page);
   };
 
-  const handleViewTransaction = (transaction: Transaction) => {
+  const handleViewTransaction = (transaction: TransactionWithCustomer) => {
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
@@ -182,11 +182,9 @@ export default function Transactions() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Transaction ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
@@ -195,13 +193,6 @@ export default function Transactions() {
             <TableBody>
               {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
-                  <TableCell>
-                    <div className="font-mono text-sm">
-                      {transaction.id.length > 16 
-                        ? `${transaction.id.substring(0, 8)}...${transaction.id.substring(transaction.id.length - 8)}`
-                        : transaction.id}
-                    </div>
-                  </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-400" />
@@ -214,6 +205,16 @@ export default function Transactions() {
                         <div className="text-xs text-gray-500">
                           {transaction.customer?.email || transaction.emailAddress || "No email"}
                         </div>
+                        <div className="text-xs text-gray-400 font-mono">
+                          TX: {transaction.id.length > 16 
+                            ? `${transaction.id.substring(0, 8)}...${transaction.id.substring(transaction.id.length - 8)}`
+                            : transaction.id}
+                        </div>
+                        {transaction.paymentMethod && (
+                          <div className="text-xs text-gray-400 font-mono">
+                            PM: {transaction.paymentMethod}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </TableCell>
@@ -228,14 +229,6 @@ export default function Transactions() {
                       <DollarSign className="h-4 w-4 mr-1 text-green-600" />
                       <span className="font-medium">
                         {formatAmount(transaction.amount)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-1">
-                      <CreditCard className="h-3 w-3 text-gray-400" />
-                      <span className="text-sm">
-                        {transaction.paymentMethod || "Unknown"}
                       </span>
                     </div>
                   </TableCell>

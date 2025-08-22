@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Heart } from "lucide-react";
+import jfjLogo from "@assets/star-blue-digital_1755825777612.png";
 import { NAVIGATION_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +11,8 @@ export function Sidebar() {
     <div className="w-64 bg-white shadow-sm border-r border-gray-200">
       <div className="p-6">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-jfj-blue rounded-lg flex items-center justify-center">
-            <Heart className="h-4 w-4 text-white" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src={jfjLogo} alt="Jews for Jesus" className="h-6 w-6" />
           </div>
           <span className="font-semibold text-gray-900">Jews for Jesus</span>
         </div>
