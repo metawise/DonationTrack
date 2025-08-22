@@ -202,13 +202,12 @@ export class MyWellSyncService {
         for (const myWellTransaction of response.transactions) {
           try {
             // Log transaction data for debugging
-            if (totalSynced < 3) { // Only log first 3 for debugging
-              console.log(`🔍 Transaction sample:`, {
-                id: myWellTransaction.id,
-                emailAddress: myWellTransaction.emailAddress,
-                billingEmail: myWellTransaction.billingAddress?.email,
-                hasResponseBody: !!myWellTransaction.responseBody
-              });
+            if (totalSynced < 2) { // Only log first 2 for debugging
+              console.log(`🔍 Transaction sample ${totalSynced + 1}:`);
+              console.log(`  ID: ${myWellTransaction.id}`);
+              console.log(`  EmailAddress: ${myWellTransaction.emailAddress}`);
+              console.log(`  BillingEmail: ${myWellTransaction.billingAddress?.email}`);
+              console.log(`  ResponseBody:`, JSON.stringify(myWellTransaction.responseBody, null, 2));
             }
             
             // First, upsert the customer

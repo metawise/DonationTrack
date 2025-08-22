@@ -130,8 +130,8 @@ class SchedulerService {
         startDate = new Date(lastSyncConfig.lastSyncAt);
         startDate.setDate(startDate.getDate() - 1); // Go back 1 day to catch any updates
       } else {
-        // No previous sync, go back 24 hours
-        startDate.setDate(startDate.getDate() - 1);
+        // No previous sync, go back 7 days to get recent data
+        startDate.setDate(startDate.getDate() - 7);
       }
       
       const startDateStr = startDate.toISOString().split('T')[0];
