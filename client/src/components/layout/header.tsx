@@ -94,7 +94,7 @@ export function Header() {
             if (response.ok) {
               setIsProfileModalOpen(false);
               // Optionally refresh auth context to get updated user data
-              location.reload();
+              window.location.reload();
             }
           } catch (error) {
             console.error('Error updating profile:', error);

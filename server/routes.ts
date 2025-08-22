@@ -402,14 +402,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/staff/:id", async (req, res) => {
     try {
-      const updates = req.body;
-      const staff = await storage.updateStaff(req.params.id, updates);
+      console.log('📝 Updating staff member:', req.params.id, req.body);
+      
+      // Convert hireDate string to Date object if needed
+      const requestData = {
+        ...req.body,
+        hireDate: req.body.hireDate ? new Date(req.body.hireDate) : new Date()
+      };
+      
+      // Validate the data against schema
+      const validatedData = insertStaffSchema.partial().parse(requestData);
+      console.log('✅ Validated staff data:', validatedData);
+      
+      const staff = await storage.updateStaff(req.params.id, validatedData);
       if (!staff) {
         return res.status(404).json({ error: "Staff member not found" });
       }
+      
+      console.log('✅ Staff member updated successfully:', staff.firstName, staff.lastName);
       res.json(staff);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update staff member" });
+      console.error('❌ Failed to update staff member:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid staff data", details: error.errors });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ error: "Failed to update staff member", details: errorMessage });
+      }
     }
   });
 
