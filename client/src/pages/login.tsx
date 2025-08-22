@@ -42,7 +42,17 @@ export default function Login() {
 
   const sendOTPMutation = useMutation({
     mutationFn: async (data: EmailFormData) => {
-      const response = await apiRequest('POST', '/api/auth/send-otp', data);
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send verification code');
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
@@ -50,8 +60,17 @@ export default function Login() {
       setStep("otp");
       toast({
         title: "Verification Code Sent",
-        description: "Please check your email for the 6-digit verification code.",
+        description: `Code sent to ${data.email}. Check server console for testing.`,
       });
+      // In development, show OTP in toast for testing
+      if (data.otp && process.env.NODE_ENV === 'development') {
+        setTimeout(() => {
+          toast({
+            title: "Development Mode",
+            description: `Test OTP: ${data.otp}`,
+          });
+        }, 1000);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -64,28 +83,34 @@ export default function Login() {
 
   const verifyOTPMutation = useMutation({
     mutationFn: async (data: OTPFormData) => {
-      const response = await apiRequest('POST', '/api/auth/verify-otp', {
-        email,
-        code: data.code,
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          code: data.code,
+        }),
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Invalid verification code');
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
       toast({
         title: "Login Successful",
-        description: "Welcome to the Jews for Jesus Donation Management System.",
+        description: `Welcome ${data.user?.firstName || 'back'} to the donation management system.`,
       });
-      // Store authentication token/session if provided
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      // Redirect to dashboard - session is handled by server
+      window.location.href = '/';
     },
     onError: (error: any) => {
       toast({
         title: "Invalid Verification Code",
-        description: "Please check your code and try again.",
+        description: error.message || "Please check your code and try again.",
         variant: "destructive",
       });
       otpForm.setError("code", { message: "Invalid verification code" });
@@ -215,7 +240,7 @@ export default function Login() {
                     Use Different Email
                   </Button>
                   <p className="text-sm text-gray-600">
-                    Didn't receive the code? Check your spam folder or try again.
+                    Development Mode: Check server console for OTP code.
                   </p>
                 </div>
               </div>

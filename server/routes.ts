@@ -1,5 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import session from "express-session";
+import ConnectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { storage } from "./storage";
 import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
 import { myWellSync } from "./services/mywell-sync";
@@ -7,7 +10,41 @@ import { sendAuthEmail } from "./services/email";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
+// Extend Express Request type for session
+declare module "express-session" {
+  interface SessionData {
+    otp?: string;
+    email?: string;
+    otpExpires?: number;
+    userId?: string;
+    user?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      role: string;
+    };
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure session middleware
+  const PgSession = ConnectPgSimple(session);
+  app.use(session({
+    store: new PgSession({
+      pool: pool,
+      tableName: 'session',
+      createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }));
   // Dashboard metrics endpoint
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {
