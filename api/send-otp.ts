@@ -17,10 +17,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { email } = req.body || {};
+    // Debug logging
+    console.log('Send OTP - Request body:', req.body);
+    console.log('Send OTP - Request body type:', typeof req.body);
+
+    // Handle different body parsing scenarios
+    let body;
+    if (typeof req.body === 'string') {
+      try {
+        body = JSON.parse(req.body);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
+    } else {
+      body = req.body || {};
+    }
+
+    const { email } = body;
+    
+    console.log('Send OTP - Parsed email:', email);
     
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      return res.status(400).json({ 
+        error: 'Email is required',
+        debug: {
+          receivedEmail: email,
+          bodyType: typeof req.body,
+          rawBody: req.body
+        }
+      });
     }
 
     // Generate OTP

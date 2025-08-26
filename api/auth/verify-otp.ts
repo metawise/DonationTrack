@@ -14,10 +14,37 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { email, otp } = req.body || {};
+    // Debug logging
+    console.log('Request body:', req.body);
+    console.log('Request body type:', typeof req.body);
+
+    // Handle different body parsing scenarios
+    let body;
+    if (typeof req.body === 'string') {
+      try {
+        body = JSON.parse(req.body);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
+    } else {
+      body = req.body || {};
+    }
+
+    const { email, otp } = body;
+
+    console.log('Parsed email:', email);
+    console.log('Parsed OTP:', otp);
 
     if (!email || !otp) {
-      return res.status(400).json({ error: 'Email and OTP are required' });
+      return res.status(400).json({ 
+        error: 'Email and OTP are required',
+        debug: {
+          receivedEmail: email,
+          receivedOtp: otp,
+          bodyType: typeof req.body,
+          rawBody: req.body
+        }
+      });
     }
 
     // For demo purposes - accept any 6-digit OTP
