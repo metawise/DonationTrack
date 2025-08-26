@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "server/index.ts": {
+    "api/index.ts": {
       "runtime": "nodejs18.x",
       "maxDuration": 30
     }
@@ -9,7 +9,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/index.ts"
+      "destination": "/api/index"
     }
   ],
   "headers": [
