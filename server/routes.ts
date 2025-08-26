@@ -30,35 +30,67 @@ declare module "express-session" {
 
 // Synchronous version for serverless (Vercel)
 export function registerRoutesSync(app: Express) {
-  // Configure session middleware
-  const PgSession = ConnectPgSimple(session);
-  app.use(session({
-    store: new PgSession({
-      pool: pool,
-      tableName: 'session',
-      createTableIfMissing: true,
-    }),
-    secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  }));
+  // Configure session middleware for serverless (use memory store)
+  if (process.env.VERCEL) {
+    // Simplified session setup for serverless
+    app.use(session({
+      secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: true, // HTTPS in production
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    }));
+  } else {
+    // Full PostgreSQL session store for non-serverless
+    const PgSession = ConnectPgSimple(session);
+    app.use(session({
+      store: new PgSession({
+        pool: pool,
+        tableName: 'session',
+        createTableIfMissing: true,
+      }),
+      secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    }));
+  }
 
   // Add all the same routes that are in registerRoutes
   addAllRoutes(app);
 }
 
 function addAllRoutes(app: Express) {
+  // Test endpoint for debugging
+  app.all("/api/test*", (req, res) => {
+    try {
+      console.log('Test endpoint via Express:', req.method, req.path);
+      res.json({ 
+        message: "Express test endpoint working",
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path: req.path
+      });
+    } catch (error) {
+      console.error('Express test error:', error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+
   // Dashboard metrics endpoint
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
     } catch (error) {
+      console.error('Dashboard metrics error:', error);
       res.status(500).json({ error: "Failed to fetch dashboard metrics" });
     }
   });
