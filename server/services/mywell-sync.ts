@@ -4,8 +4,15 @@ import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { storage } from '../storage';
 import { randomUUID } from 'crypto';
 
-const MYWELL_API_BASE = 'https://dev-api.mywell.io/api';
-const MYWELL_API_TOKEN = '84c7f095-8f50-4645-bc65-b0163c104839';
+const MYWELL_API_BASE = process.env.MYWELL_API_BASE || 'https://dev-api.mywell.io/api';
+const MYWELL_API_TOKEN = process.env.MYWELL_API_TOKEN;
+
+if (!MYWELL_API_TOKEN) {
+  throw new Error('MYWELL_API_TOKEN environment variable is required');
+}
+
+// Ensure TypeScript knows MYWELL_API_TOKEN is defined
+const apiToken: string = MYWELL_API_TOKEN;
 
 export interface MyWellTransaction {
   id: string;
@@ -49,7 +56,7 @@ export class MyWellSyncService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apiToken': MYWELL_API_TOKEN,
+          'apiToken': apiToken,
         },
         body: JSON.stringify({
           createdAt: {

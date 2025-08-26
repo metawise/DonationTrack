@@ -1,6 +1,12 @@
 import { Resend } from 'resend';
 
-const resend = new Resend('re_NcWtx9J8_EPjE4YJhcvRRyjU2cqdiZ2WA');
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+if (!RESEND_API_KEY) {
+  throw new Error('RESEND_API_KEY environment variable is required');
+}
+
+const resend = new Resend(RESEND_API_KEY);
 
 export async function sendAuthEmail(email: string, otp: string, firstName: string): Promise<void> {
   // Always log for debugging
