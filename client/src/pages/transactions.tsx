@@ -44,10 +44,12 @@ export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [countdown, setCountdown] = useState<string>("");
+  const [highlightedTransactions, setHighlightedTransactions] = useState<Set<string>>(new Set());
   const itemsPerPage = 50;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const lastSyncTimeRef = useRef<string | null>(null);
+  const previousTransactionsRef = useRef<TransactionWithCustomer[]>([]);
 
   // Determine if we need to fetch all data for client-side filtering
   const hasFilters = searchTerm || statusFilter !== "all";
@@ -99,6 +101,7 @@ export default function Transactions() {
       lastSyncTimeRef.current = syncConfig.lastSyncAt;
     }
   }, [syncConfig?.lastSyncAt, syncConfig?.lastSyncStatus, queryClient]);
+
 
   // Update countdown timer
   useEffect(() => {
@@ -177,6 +180,31 @@ export default function Transactions() {
   const paginatedTransactions = hasFilters 
     ? filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
     : transactions;
+
+  // Detect newly added transactions and highlight them
+  useEffect(() => {
+    if (transactions.length > 0) {
+      const previousIds = new Set(previousTransactionsRef.current.map(t => t.id));
+      const newTransactionIds = transactions
+        .filter(transaction => !previousIds.has(transaction.id))
+        .map(transaction => transaction.id);
+      
+      if (newTransactionIds.length > 0 && previousTransactionsRef.current.length > 0) {
+        // Highlight newly added transactions
+        setHighlightedTransactions(new Set(newTransactionIds));
+        
+        // Remove highlights after 5 seconds
+        setTimeout(() => {
+          setHighlightedTransactions(new Set());
+        }, 5000);
+        
+        console.log(`✨ Highlighting ${newTransactionIds.length} new transactions`);
+      }
+      
+      // Update previous transactions reference
+      previousTransactionsRef.current = [...transactions];
+    }
+  }, [transactions]);
 
   const formatAmount = (amount: number) => {
     return (amount / 100).toLocaleString("en-US", {
@@ -331,7 +359,14 @@ export default function Transactions() {
             </TableHeader>
             <TableBody>
               {paginatedTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
+                <TableRow 
+                  key={transaction.id}
+                  className={`transition-all duration-1000 ease-in-out ${
+                    highlightedTransactions.has(transaction.id) 
+                      ? 'bg-gradient-to-r from-green-50 to-blue-50 border-l-4 border-green-400 shadow-md animate-pulse' 
+                      : ''
+                  }`}
+                >
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-400" />
