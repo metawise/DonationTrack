@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { ArrowRight, User } from "lucide-react";
 import { METRIC_ICONS, STATUS_COLORS, TYPE_COLORS } from "@/lib/constants";
 import { DashboardMetrics, TransactionWithCustomer } from "@shared/schema";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TransactionDetailModal } from "@/components/modals/transaction-detail-modal";
 
 export default function Dashboard() {
@@ -15,6 +15,8 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const queryClient = useQueryClient();
+  const lastSyncTimeRef = useRef<string | null>(null);
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/metrics'],
@@ -31,6 +33,27 @@ export default function Dashboard() {
       return res.json();
     },
   });
+
+  // Query for sync config to detect when sync completes
+  const { data: syncConfig } = useQuery<any>({
+    queryKey: ['/api/sync/config'],
+    refetchInterval: 5000, // Refetch every 5 seconds to detect sync completion
+  });
+  
+  // Detect sync completion and refresh dashboard data
+  useEffect(() => {
+    if (syncConfig?.lastSyncAt && syncConfig.lastSyncStatus === 'success') {
+      // Check if this is a new sync completion
+      if (lastSyncTimeRef.current && lastSyncTimeRef.current !== syncConfig.lastSyncAt) {
+        // A new sync has completed - invalidate dashboard cache to refresh data
+        console.log('🔄 Auto sync completed - refreshing dashboard data');
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      }
+      // Update the ref to track this sync time
+      lastSyncTimeRef.current = syncConfig.lastSyncAt;
+    }
+  }, [syncConfig?.lastSyncAt, syncConfig?.lastSyncStatus, queryClient]);
   
   const recentTransactions = transactionsResponse?.transactions || [];
 

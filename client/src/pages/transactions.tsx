@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeftRight, Search, DollarSign, Calendar, CreditCard, User, ChevronLeft, ChevronRight, Filter, RefreshCw, Clock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TransactionDetailModal } from "@/components/modals/transaction-detail-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,19 +47,26 @@ export default function Transactions() {
   const itemsPerPage = 50;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const lastSyncTimeRef = useRef<string | null>(null);
 
   // Determine if we need to fetch all data for client-side filtering
   const hasFilters = searchTerm || statusFilter !== "all";
 
   // Query for sync status and next sync time
-  const { data: syncStatus } = useQuery({
+  const { data: syncStatus } = useQuery<any>({
     queryKey: ['/api/sync/status'],
     refetchInterval: 5000, // Refetch every 5 seconds to update countdown
   });
 
+  // Query for sync config to detect when sync completes
+  const { data: syncConfig } = useQuery<any>({
+    queryKey: ['/api/sync/config'],
+    refetchInterval: 5000, // Refetch every 5 seconds to detect sync completion
+  });
+
   // Manual sync mutation
   const syncMutation = useMutation({
-    mutationFn: () => apiRequest('/api/sync/trigger', { method: 'POST' }),
+    mutationFn: () => apiRequest('POST', '/api/sync/trigger'),
     onSuccess: () => {
       toast({
         title: "Sync Triggered",
@@ -77,6 +84,21 @@ export default function Transactions() {
       });
     },
   });
+
+  // Detect sync completion and refresh transaction data
+  useEffect(() => {
+    if (syncConfig?.lastSyncAt && syncConfig.lastSyncStatus === 'success') {
+      // Check if this is a new sync completion
+      if (lastSyncTimeRef.current && lastSyncTimeRef.current !== syncConfig.lastSyncAt) {
+        // A new sync has completed - invalidate transaction cache to refresh data
+        console.log('🔄 Auto sync completed - refreshing transaction data');
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
+      }
+      // Update the ref to track this sync time
+      lastSyncTimeRef.current = syncConfig.lastSyncAt;
+    }
+  }, [syncConfig?.lastSyncAt, syncConfig?.lastSyncStatus, queryClient]);
 
   // Update countdown timer
   useEffect(() => {
