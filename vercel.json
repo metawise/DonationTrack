@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/index.ts": {
+    "api/**/*.ts": {
       "maxDuration": 30
     }
   },
@@ -9,10 +9,6 @@
     {
       "source": "/api/auth/send-otp",
       "destination": "/api/send-otp"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
     },
     {
       "source": "/(.*)",
