@@ -44,6 +44,12 @@ class SchedulerService {
 
   async scheduleMyWellSync() {
     try {
+      // Check if MyWell integration is enabled
+      if (!myWellSync.isEnabled()) {
+        console.log('MyWell sync is disabled - no API token provided');
+        return;
+      }
+
       const [config] = await db
         .select()
         .from(syncConfig)
@@ -51,7 +57,7 @@ class SchedulerService {
         .limit(1);
 
       if (!config || !config.isActive) {
-        console.log('MyWell sync is disabled');
+        console.log('MyWell sync is disabled in configuration');
         return;
       }
 

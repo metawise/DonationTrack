@@ -7,12 +7,8 @@ import { randomUUID } from 'crypto';
 const MYWELL_API_BASE = process.env.MYWELL_API_BASE || 'https://dev-api.mywell.io/api';
 const MYWELL_API_TOKEN = process.env.MYWELL_API_TOKEN;
 
-if (!MYWELL_API_TOKEN) {
-  throw new Error('MYWELL_API_TOKEN environment variable is required');
-}
-
-// Ensure TypeScript knows MYWELL_API_TOKEN is defined
-const apiToken: string = MYWELL_API_TOKEN;
+// MyWell integration is optional - if no token is provided, the service will be disabled
+const isMyWellEnabled = !!MYWELL_API_TOKEN;
 
 export interface MyWellTransaction {
   id: string;
@@ -51,12 +47,17 @@ export class MyWellSyncService {
     offset: number = 0,
     limit: number = 500
   ): Promise<MyWellApiResponse> {
+    if (!isMyWellEnabled) {
+      console.log('MyWell integration disabled - no API token provided');
+      return { transactions: [], hasMore: false, total: 0 };
+    }
+
     try {
       const response = await fetch(`${MYWELL_API_BASE}/transaction/gift/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apiToken': apiToken,
+          'apiToken': MYWELL_API_TOKEN!,
         },
         body: JSON.stringify({
           createdAt: {
@@ -179,6 +180,11 @@ export class MyWellSyncService {
     totalSynced: number;
     error?: string;
   }> {
+    if (!isMyWellEnabled) {
+      console.log('MyWell sync skipped - integration disabled (no API token)');
+      return { success: true, totalSynced: 0 };
+    }
+
     let totalSynced = 0;
     let offset = 0;
     const limit = 500;
@@ -297,6 +303,11 @@ export class MyWellSyncService {
         updatedAt: new Date(),
       })
       .where(eq(syncConfig.name, 'mywell_transactions'));
+  }
+
+  // Check if MyWell integration is enabled
+  isEnabled(): boolean {
+    return isMyWellEnabled;
   }
 }
 

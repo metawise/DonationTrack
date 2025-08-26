@@ -2,18 +2,21 @@ import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-if (!RESEND_API_KEY) {
-  throw new Error('RESEND_API_KEY environment variable is required');
-}
-
-const resend = new Resend(RESEND_API_KEY);
+// Email service is optional - if no API key is provided, emails will be logged only
+const isEmailEnabled = !!RESEND_API_KEY;
+const resend = isEmailEnabled ? new Resend(RESEND_API_KEY) : null;
 
 export async function sendAuthEmail(email: string, otp: string, firstName: string): Promise<void> {
   // Always log for debugging
   console.log(`🔐 Authentication code for ${firstName} (${email}): ${otp}`);
   
+  if (!isEmailEnabled) {
+    console.log('📧 Email service disabled - no API key provided. OTP logged above.');
+    return;
+  }
+  
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend!.emails.send({
       from: 'Jews for Jesus <onboarding@resend.dev>',
       to: email,
       subject: 'Your Login Verification Code - Jews for Jesus',
@@ -68,8 +71,13 @@ export async function sendPasswordResetEmail(email: string, resetLink: string): 
   // Always log for debugging
   console.log(`🔒 Password reset link for ${email}: ${resetLink}`);
   
+  if (!isEmailEnabled) {
+    console.log('📧 Email service disabled - no API key provided. Reset link logged above.');
+    return;
+  }
+  
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resend!.emails.send({
       from: 'Jews for Jesus <onboarding@resend.dev>',
       to: email,
       subject: 'Password Reset Request - Jews for Jesus',
