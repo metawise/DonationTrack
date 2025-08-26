@@ -1,41 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "client/index.html",
-      "use": "@vercel/static-build",
-      "config": {
-        "buildCommand": "npm run build",
-        "distDir": "client/dist"
-      }
-    },
-    {
-      "src": "server/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["server/**", "shared/**"]
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/dist/$1"
-    },
-    {
-      "src": "/.*",
-      "dest": "/client/dist/index.html"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
     "server/index.ts": {
+      "runtime": "nodejs18.x",
       "maxDuration": 30
     }
   },
@@ -64,7 +31,7 @@
       ]
     }
   ],
-  "installCommand": "npm ci",
   "buildCommand": "vite build",
-  "outputDirectory": "client/dist"
+  "outputDirectory": "client/dist",
+  "installCommand": "npm ci"
 }
