@@ -2,7 +2,6 @@
   "version": 2,
   "functions": {
     "api/index.ts": {
-      "runtime": "nodejs18.x",
       "maxDuration": 30
     }
   },
@@ -32,6 +31,6 @@
     }
   ],
   "buildCommand": "vite build",
-  "outputDirectory": "client/dist",
+  "outputDirectory": "dist/public",
   "installCommand": "npm ci"
 }
