@@ -28,7 +28,8 @@ declare module "express-session" {
   }
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+// Synchronous version for serverless (Vercel)
+export function registerRoutesSync(app: Express) {
   // Configure session middleware
   const PgSession = ConnectPgSimple(session);
   app.use(session({
@@ -46,6 +47,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
   }));
+
+  // Add all the same routes that are in registerRoutes
+  addAllRoutes(app);
+}
+
+function addAllRoutes(app: Express) {
   // Dashboard metrics endpoint
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {
@@ -551,6 +558,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  registerRoutesSync(app);
   const httpServer = createServer(app);
   return httpServer;
 }
