@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes, registerRoutesSync } from "./routes";
-import { scheduler } from "./services/scheduler";
-import { setupVite, serveStatic, log } from "./vite";
+import { registerRoutes, registerRoutesSync } from "./routes.js";
+import { scheduler } from "./services/scheduler.js";
+import { setupVite, serveStatic, log } from "./vite.js";
 
 const app = express();
 app.use(express.json());

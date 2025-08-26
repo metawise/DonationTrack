@@ -1,6 +1,6 @@
 import { type Customer, type Transaction, type Staff, type SyncConfig, type InsertCustomer, type InsertTransaction, type InsertStaff, type InsertSyncConfig, type TransactionWithCustomer, type DashboardMetrics } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { db } from "./db";
+import { db } from "./db.js";
 import { customers, transactions, staff, syncConfig } from "@shared/schema";
 import { eq, desc, count, sum, sql, and, gte } from "drizzle-orm";
 

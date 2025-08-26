@@ -2,12 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import ConnectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
-import { storage } from "./storage";
+import { pool } from "./db.js";
+import { storage } from "./storage.js";
 import { createTransactionSchema, insertCustomerSchema, insertTransactionSchema, insertStaffSchema } from "@shared/schema";
-import { myWellSync } from "./services/mywell-sync";
-import { sendAuthEmail, sendPasswordResetEmail } from "./services/email";
-import { scheduler } from "./services/scheduler";
+import { myWellSync } from "./services/mywell-sync.js";
+import { sendAuthEmail, sendPasswordResetEmail } from "./services/email.js";
+import { scheduler } from "./services/scheduler.js";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 

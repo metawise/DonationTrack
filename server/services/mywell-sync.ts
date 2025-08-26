@@ -1,7 +1,7 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { customers, transactions, syncConfig } from '@shared/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
-import { storage } from '../storage';
+import { storage } from '../storage.js';
 import { randomUUID } from 'crypto';
 
 const MYWELL_API_BASE = process.env.MYWELL_API_BASE || 'https://dev-api.mywell.io/api';

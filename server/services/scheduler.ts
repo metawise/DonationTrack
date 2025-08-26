@@ -1,6 +1,6 @@
 import * as cron from 'node-cron';
-import { myWellSync } from './mywell-sync';
-import { db } from '../db';
+import { myWellSync } from './mywell-sync.js';
+import { db } from '../db.js';
 import { syncConfig } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 
