@@ -88,6 +88,15 @@ export const dbHelpers = {
       .orderBy(desc(schema.staff.createdAt));
   },
 
+  async getStaffById(id: string) {
+    const [staff] = await db.select()
+      .from(schema.staff)
+      .where(eq(schema.staff.id, id))
+      .limit(1);
+    
+    return staff || null;
+  },
+
   async createStaff(staff: any) {
     const [newStaff] = await db.insert(schema.staff)
       .values(staff)
