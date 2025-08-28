@@ -1,0 +1,167 @@
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
+import * as schema from '../shared/schema';
+import { eq, desc, count, sum, sql, and, gte } from 'drizzle-orm';
+import { subDays, startOfMonth } from 'date-fns';
+
+// Initialize database connection
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
+
+const connection = neon(dbUrl);
+export const db = drizzle(connection, { schema });
+
+// Database helper functions for API routes
+export const dbHelpers = {
+  // Customers
+  async getCustomers(page = 1, limit = 50, consolidated = false) {
+    const offset = (page - 1) * limit;
+    
+    const [customers, [{ total }]] = await Promise.all([
+      db.select()
+        .from(schema.customers)
+        .orderBy(desc(schema.customers.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(schema.customers)
+    ]);
+
+    return { customers, total: total || 0 };
+  },
+
+  async getCustomerById(id: string) {
+    const [customer] = await db.select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, id))
+      .limit(1);
+    
+    return customer || null;
+  },
+
+  async createCustomer(customer: any) {
+    const [newCustomer] = await db.insert(schema.customers)
+      .values(customer)
+      .returning();
+    
+    return newCustomer;
+  },
+
+  // Transactions
+  async getTransactions(page = 1, limit = 50) {
+    const offset = (page - 1) * limit;
+    
+    const [transactions, [{ total }]] = await Promise.all([
+      db.select()
+        .from(schema.transactions)
+        .orderBy(desc(schema.transactions.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(schema.transactions)
+    ]);
+
+    return { transactions, total: total || 0 };
+  },
+
+  async getTransactionById(id: string) {
+    const [transaction] = await db.select()
+      .from(schema.transactions)
+      .where(eq(schema.transactions.id, id))
+      .limit(1);
+    
+    return transaction || null;
+  },
+
+  async createTransaction(transaction: any) {
+    const [newTransaction] = await db.insert(schema.transactions)
+      .values(transaction)
+      .returning();
+    
+    return newTransaction;
+  },
+
+  // Staff
+  async getStaff() {
+    return await db.select()
+      .from(schema.staff)
+      .orderBy(desc(schema.staff.createdAt));
+  },
+
+  async createStaff(staff: any) {
+    const [newStaff] = await db.insert(schema.staff)
+      .values(staff)
+      .returning();
+    
+    return newStaff;
+  },
+
+  // Dashboard metrics
+  async getDashboardMetrics() {
+    const thisMonth = startOfMonth(new Date());
+    const lastMonth = subDays(thisMonth, 30);
+
+    try {
+      const [
+        [{ totalDonations }],
+        [{ activeSubscribers }],
+        [{ thisMonthAmount }],
+        [{ avgDonation }]
+      ] = await Promise.all([
+        db.select({ totalDonations: sum(schema.transactions.amount) })
+          .from(schema.transactions)
+          .where(eq(schema.transactions.status, 'SETTLED')),
+        
+        db.select({ activeSubscribers: count() })
+          .from(schema.customers)
+          .where(eq(schema.customers.customerType, 'active-subscriber')),
+        
+        db.select({ thisMonthAmount: sum(schema.transactions.amount) })
+          .from(schema.transactions)
+          .where(
+            and(
+              eq(schema.transactions.status, 'SETTLED'),
+              gte(schema.transactions.createdAt, thisMonth)
+            )
+          ),
+        
+        db.select({ 
+          avgDonation: sql<number>`COALESCE(AVG(${schema.transactions.amount}), 0)` 
+        })
+          .from(schema.transactions)
+          .where(eq(schema.transactions.status, 'SETTLED'))
+      ]);
+
+      return {
+        totalDonations: Number(totalDonations) || 0,
+        activeSubscribers: Number(activeSubscribers) || 0,
+        thisMonth: Number(thisMonthAmount) || 0,
+        avgDonation: Number(avgDonation) || 0
+      };
+    } catch (error) {
+      console.error('Dashboard metrics error:', error);
+      // Return default values if database is empty or there's an error
+      return {
+        totalDonations: 0,
+        activeSubscribers: 0,
+        thisMonth: 0,
+        avgDonation: 0
+      };
+    }
+  },
+
+  // Sync configs
+  async getSyncConfigs() {
+    return await db.select()
+      .from(schema.syncConfig)
+      .orderBy(desc(schema.syncConfig.createdAt));
+  },
+
+  async createSyncConfig(config: any) {
+    const [newConfig] = await db.insert(schema.syncConfig)
+      .values(config)
+      .returning();
+    
+    return newConfig;
+  }
+};
