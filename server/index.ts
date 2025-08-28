@@ -11,37 +11,23 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 async function setupDevServer() {
-  // Setup Vite dev server for frontend with explicit host allowance
-  const vite = await createServer({
-    configFile: false, // Disable vite.config.ts to override settings
-    server: { 
-      middlewareMode: true,
-      host: true, // This allows all hosts as per Replit documentation
-      port: 5000,
-      origin: 'http://0.0.0.0:5000',
-      strictPort: false,
-      fs: {
-        strict: false,
-        allow: ['..']
-      }
-    },
-    define: {
-      'process.env.REPL_SLUG': JSON.stringify(process.env.REPL_SLUG || ''),
-      'process.env.REPL_OWNER': JSON.stringify(process.env.REPL_OWNER || ''),
-    },
-    appType: "spa",
-    root: path.resolve(process.cwd(), "client"),
-    resolve: {
-      alias: {
-        "@": path.resolve(process.cwd(), "client/src"),
-        "@shared": path.resolve(process.cwd(), "shared"),
-        "@assets": path.resolve(process.cwd(), "attached_assets"),
-      },
-    },
-    plugins: [
-      (await import("@vitejs/plugin-react")).default(),
-    ],
-  });
+  // Check if we have a build directory, if not build first
+  const distPath = path.resolve(process.cwd(), "dist/public");
+  if (!fs.existsSync(distPath)) {
+    console.log("📦 Building frontend first...");
+    const { exec } = await import('child_process');
+    await new Promise((resolve, reject) => {
+      exec('npm run build', (error, stdout, stderr) => {
+        if (error) {
+          console.error('Build failed:', error);
+          reject(error);
+        } else {
+          console.log('Build completed successfully');
+          resolve(stdout);
+        }
+      });
+    });
+  }
 
   // Handle API routes by dynamically importing the handlers
   app.all('/api/*', async (req, res) => {
@@ -70,8 +56,8 @@ async function setupDevServer() {
     }
   });
 
-  // Use Vite middleware for frontend
-  app.use(vite.middlewares);
+  // Serve static files from the build directory
+  app.use(express.static(distPath));
 
   // Set additional headers for Replit compatibility
   app.use((req, res, next) => {
@@ -81,9 +67,16 @@ async function setupDevServer() {
     next();
   });
 
+  // Handle SPA routing - serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
+  });
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Development server running on http://0.0.0.0:${PORT}`);
-    console.log(`📱 Frontend: Vite dev server`);
+    console.log(`📱 Frontend: Static build (no host restrictions)`);
     console.log(`🔌 API: Vercel-compatible handlers`);
     console.log(`🌐 Replit URL: https://${process.env.REPL_SLUG || 'repl'}-${process.env.REPL_OWNER || 'user'}.replit.dev`);
   });

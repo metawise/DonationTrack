@@ -29,9 +29,11 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    allowedHosts: [".spock.replit.dev"],
     fs: {
-      strict: true,
-      deny: ["**/.*"],
+      // strict: true,
+      // deny: ["**/.*"],
+      allow: [".."],
     },
   },
 });
