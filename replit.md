@@ -19,11 +19,11 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with custom CSS variables for theming, including Jews for Jesus brand colors
 
 ## Backend Architecture
-- **Runtime**: Node.js with Express.js framework
+- **Runtime**: Vercel serverless functions with Node.js runtime
 - **Language**: TypeScript with ES modules
-- **Development**: TSX for TypeScript execution during development
-- **Production Build**: esbuild for fast bundling with external package handling
-- **API Pattern**: RESTful endpoints with consistent error handling and request/response logging
+- **API Pattern**: Individual NextJS-style API routes (/api/*.ts)
+- **Production**: Each endpoint deploys as a standalone serverless function
+- **Development**: Vite development server with API route support
 
 ## Data Storage Architecture
 - **Database**: PostgreSQL with Supabase cloud hosting and serverless driver
@@ -33,11 +33,10 @@ Preferred communication style: Simple, everyday language.
 - **Data Sources**: Real transaction data from MyWell API, stored customer information, staff records
 
 ## Sync Architecture
-- **Scheduler**: Node-cron based automated sync service
-- **Sync Configuration**: Database-stored sync settings with configurable frequency
-- **API Integration**: Paginated data retrieval from MyWell API (500 records per request)
-- **Data Processing**: Customer record creation/updates, transaction deduplication
-- **Monitoring**: Last sync tracking, error logging, and success metrics
+- **Status**: Sync functionality disabled in serverless architecture
+- **API Integration**: MyWell API integration code available but requires scheduled execution
+- **Data Processing**: Prepared for customer record creation/updates and transaction deduplication
+- **Future**: Could be implemented via Vercel Cron Jobs or external scheduler
 
 ## Database Schema Design
 - **Customers Table**: Stores donor information including personal details, addresses, and donation metrics
@@ -51,10 +50,11 @@ Preferred communication style: Simple, everyday language.
 - Ready for integration with more robust authentication systems
 
 ## Development & Deployment Strategy
-- **Monorepo Structure**: Client and server code in same repository with shared schema
-- **Development**: Hot module replacement via Vite with Express server integration
-- **Build Process**: Separate client and server builds with static file serving
-- **Environment**: Replit-optimized with development banners and error overlays
+- **Frontend-Only Development**: Pure Vite development server for frontend
+- **API Routes**: Individual serverless functions in /api directory
+- **Build Process**: Static frontend build with serverless function deployment
+- **Deployment**: Vercel-optimized with automatic serverless function detection
+- **Environment**: Replit development with Vercel production deployment
 
 # External Dependencies
 

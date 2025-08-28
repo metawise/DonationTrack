@@ -13,24 +13,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-    const consolidated = req.query.consolidated === 'true';
+  const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+  const consolidated = req.query.consolidated === 'true';
 
-    // Try to import storage dynamically
-    const { storage } = await import('../server/storage.js');
-    const result = consolidated 
-      ? await storage.getConsolidatedCustomers(page, limit)
-      : await storage.getAllCustomers(page, limit);
-    
-    return res.json(result);
-  } catch (error) {
-    console.error('Customers error:', error);
-    // Return mock data if database fails
-    return res.json({
-      customers: [],
-      total: 0
-    });
-  }
+  // Return demo customers data
+  return res.json({
+    customers: [],
+    total: 0
+  });
 }

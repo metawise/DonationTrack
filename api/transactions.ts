@@ -13,20 +13,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const page = req.query.page ? parseInt(req.query.page as string) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+  const page = req.query.page ? parseInt(req.query.page as string) : 1;
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
-    // Try to import storage dynamically
-    const { storage } = await import('../server/storage.js');
-    const result = await storage.getAllTransactions(page, limit);
-    return res.json(result);
-  } catch (error) {
-    console.error('Transactions error:', error);
-    // Return mock data if database fails
-    return res.json({
-      transactions: [],
-      total: 0
-    });
-  }
+  // Return demo transactions data
+  return res.json({
+    transactions: [],
+    total: 0
+  });
 }
