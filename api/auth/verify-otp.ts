@@ -30,17 +30,20 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       body = req.body || {};
     }
 
-    const { email, otp } = body;
+    const { email, code, otp } = body;
+    const actualOtp = code || otp; // Accept both 'code' and 'otp' field names
 
     console.log('Parsed email:', email);
-    console.log('Parsed OTP:', otp);
+    console.log('Parsed OTP:', actualOtp);
 
-    if (!email || !otp) {
+    if (!email || !actualOtp) {
       return res.status(400).json({ 
         error: 'Email and OTP are required',
         debug: {
           receivedEmail: email,
+          receivedCode: code,
           receivedOtp: otp,
+          actualOtp: actualOtp,
           bodyType: typeof req.body,
           rawBody: req.body
         }
@@ -48,7 +51,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // For demo purposes - accept any 6-digit OTP
-    if (otp.length === 6 && /^\d+$/.test(otp)) {
+    if (actualOtp.length === 6 && /^\d+$/.test(actualOtp)) {
       // Create a simple user object for the demo
       const user = {
         id: 'demo-user-id',
