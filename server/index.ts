@@ -16,7 +16,7 @@ async function setupDevServer() {
     configFile: false, // Disable vite.config.ts to override settings
     server: { 
       middlewareMode: true,
-      host: '0.0.0.0',
+      host: true, // This allows all hosts as per Replit documentation
       port: 5000,
       origin: 'http://0.0.0.0:5000',
       strictPort: false,
