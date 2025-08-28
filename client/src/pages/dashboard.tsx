@@ -37,7 +37,7 @@ export default function Dashboard() {
   // Query for sync config to detect when sync completes
   const { data: syncConfig } = useQuery<any>({
     queryKey: ['/api/sync/config'],
-    refetchInterval: 5000, // Refetch every 5 seconds to detect sync completion
+    refetchInterval: 60000, // Refetch every 60 seconds (normal interval)
   });
   
   // Detect sync completion and refresh dashboard data
