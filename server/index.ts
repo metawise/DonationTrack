@@ -13,7 +13,11 @@ app.use(express.urlencoded({ extended: true }));
 async function setupDevServer() {
   // Setup Vite dev server for frontend
   const vite = await createServer({
-    server: { middlewareMode: true },
+    server: { 
+      middlewareMode: true,
+      host: '0.0.0.0',
+      allowedHosts: 'all'
+    },
     appType: "spa",
     root: path.resolve(process.cwd(), "client"),
     resolve: {
