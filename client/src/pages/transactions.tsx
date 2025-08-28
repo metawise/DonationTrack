@@ -57,13 +57,13 @@ export default function Transactions() {
   // Query for sync status and next sync time
   const { data: syncStatus } = useQuery<any>({
     queryKey: ['/api/sync/status'],
-    refetchInterval: 5000, // Refetch every 5 seconds to update countdown
+    refetchInterval: 60000, // Refetch every 60 seconds to update countdown
   });
 
   // Query for sync config to detect when sync completes
   const { data: syncConfig } = useQuery<any>({
     queryKey: ['/api/sync/config'],
-    refetchInterval: 5000, // Refetch every 5 seconds to detect sync completion
+    refetchInterval: 60000, // Refetch every 60 seconds to detect sync completion
   });
 
   // Manual sync mutation
