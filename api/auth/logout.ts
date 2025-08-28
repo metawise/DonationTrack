@@ -13,6 +13,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Simple logout response
+  // Clear the session cookie
+  res.setHeader('Set-Cookie', [
+    'jfj_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax'
+  ]);
+
   return res.status(200).json({ message: 'Logged out successfully' });
 }

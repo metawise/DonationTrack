@@ -98,9 +98,9 @@ export default function Login() {
       // Clear forms and redirect after a short delay to ensure session is set
       emailForm.reset();
       otpForm.reset();
-      // Add delay to ensure session is properly established
+      // Use window.location.href to trigger a full page reload which will refresh auth context
       setTimeout(() => {
-        window.location.replace('/');
+        window.location.href = '/';
       }, 250);
     },
     onError: (error: any) => {

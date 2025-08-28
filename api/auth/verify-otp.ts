@@ -63,6 +63,12 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
         role: 'admin'
       };
 
+      // Set a session cookie (demo approach)
+      const sessionData = JSON.stringify(user);
+      res.setHeader('Set-Cookie', [
+        `jfj_session=${Buffer.from(sessionData).toString('base64')}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`
+      ]);
+
       return res.status(200).json({
         message: 'Authentication successful',
         user
