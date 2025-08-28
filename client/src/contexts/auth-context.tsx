@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   logout: () => void;
+  refreshAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authData, error]);
 
+  const refreshAuth = () => {
+    refetch();
+  };
+
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', { 
@@ -75,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authIsLoading = isLoading || !isInitialized;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading: authIsLoading, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading: authIsLoading, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

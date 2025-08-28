@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import { z } from "zod";
 import starLogoPath from "@assets/star-blue-digital_1755825777612.png";
 
@@ -29,6 +30,7 @@ export default function Login() {
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
   const { toast } = useToast();
+  const { refreshAuth } = useAuth();
 
   const emailForm = useForm<EmailFormData>({
     resolver: zodResolver(emailSchema),
@@ -77,6 +79,7 @@ export default function Login() {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important for session cookies
         body: JSON.stringify({
           email,
           code: data.code,
@@ -95,13 +98,14 @@ export default function Login() {
         title: "Login Successful",
         description: `Welcome ${data.user?.firstName || 'back'} to the donation management system.`,
       });
-      // Clear forms and redirect after a short delay to ensure session is set
+      // Clear forms
       emailForm.reset();
       otpForm.reset();
-      // Use window.location.href to trigger a full page reload which will refresh auth context
+      // Refresh auth context to pick up the new session and then navigate
+      refreshAuth();
       setTimeout(() => {
         window.location.href = '/';
-      }, 250);
+      }, 100);
     },
     onError: (error: any) => {
       toast({
