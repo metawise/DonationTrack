@@ -34,7 +34,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const actualOtp = code || otp; // Accept both 'code' and 'otp' field names
 
     console.log('Parsed email:', email);
-    console.log('Parsed OTP:', actualOtp);
+    console.log('Received code field:', code);
+    console.log('Received otp field:', otp); 
+    console.log('Final actualOtp:', actualOtp);
 
     if (!email || !actualOtp) {
       return res.status(400).json({ 
