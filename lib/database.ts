@@ -53,8 +53,40 @@ export const dbHelpers = {
     const offset = (page - 1) * limit;
     
     const [transactions, [{ total }]] = await Promise.all([
-      db.select()
+      db.select({
+        id: schema.transactions.id,
+        externalCustomerId: schema.transactions.externalCustomerId,
+        customerId: schema.transactions.customerId,
+        type: schema.transactions.type,
+        kind: schema.transactions.kind,
+        amount: schema.transactions.amount,
+        emailAddress: schema.transactions.emailAddress,
+        paymentMethod: schema.transactions.paymentMethod,
+        responseBody: schema.transactions.responseBody,
+        status: schema.transactions.status,
+        responseCode: schema.transactions.responseCode,
+        responseMessage: schema.transactions.responseMessage,
+        subscriptionId: schema.transactions.subscriptionId,
+        settlementBatchId: schema.transactions.settlementBatchId,
+        billingAddress: schema.transactions.billingAddress,
+        shippingAddress: schema.transactions.shippingAddress,
+        ipAddress: schema.transactions.ipAddress,
+        description: schema.transactions.description,
+        createdAt: schema.transactions.createdAt,
+        updatedAt: schema.transactions.updatedAt,
+        settledAt: schema.transactions.settledAt,
+        piUpdatedAt: schema.transactions.piUpdatedAt,
+        syncedAt: schema.transactions.syncedAt,
+        // Join customer data
+        customer: {
+          id: schema.customers.id,
+          firstName: schema.customers.firstName,
+          lastName: schema.customers.lastName,
+          email: schema.customers.email,
+        }
+      })
         .from(schema.transactions)
+        .leftJoin(schema.customers, eq(schema.transactions.customerId, schema.customers.id))
         .orderBy(desc(schema.transactions.createdAt))
         .limit(limit)
         .offset(offset),
