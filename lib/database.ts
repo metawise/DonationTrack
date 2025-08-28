@@ -142,10 +142,10 @@ export const dbHelpers = {
       ]);
 
       return {
-        totalDonations: Number(totalDonations) || 0,
+        totalDonations: Math.round((Number(totalDonations) || 0) / 100), // Convert cents to dollars
         activeSubscribers: Number(activeSubscribers) || 0,
-        thisMonth: Number(thisMonthAmount) || 0,
-        avgDonation: Number(avgDonation) || 0
+        thisMonth: Math.round((Number(thisMonthAmount) || 0) / 100), // Convert cents to dollars
+        avgDonation: Math.round((Number(avgDonation) || 0) / 100) // Convert cents to dollars
       };
     } catch (error) {
       console.error('Dashboard metrics error:', error);
