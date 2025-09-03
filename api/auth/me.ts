@@ -15,9 +15,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Check for session cookie
-    const cookies = req.headers.cookie;
+    // Check for session cookie - handle undefined headers
+    const cookies = req.headers && req.headers.cookie;
     if (!cookies) {
+      console.log('No cookies found, headers:', req.headers);
       return res.status(401).json({ error: 'Not authenticated' });
     }
 

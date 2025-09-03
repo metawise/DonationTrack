@@ -40,6 +40,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important for session consistency
         body: JSON.stringify({ email }),
       });
 
@@ -88,6 +89,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important for session cookies
         body: JSON.stringify({ email, code: otp }),
       });
 
