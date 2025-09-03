@@ -9,7 +9,8 @@ try {
 }
 
 const MYWELL_API_BASE = 'https://dev-api.mywell.io/api';
-const MYWELL_API_TOKEN = process.env.MYWELL_API_TOKEN || '84c7f095-8f50-4645-bc65-b0163c104839';
+const MYWELL_API_TOKEN_PRIVATE = process.env.MYWELL_API_TOKEN_PRIVATE || '6db9e203-041c-4c5f-80ae-02382a94d609';
+const MYWELL_API_TOKEN_PUBLIC = process.env.MYWELL_API_TOKEN_PUBLIC || 'pub_32CUcl4N2z6YIMqZCc3uH52FomP';
 
 interface MyWellTransaction {
   id: string;
@@ -65,22 +66,23 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
 
   console.log(`🔗 Fetching MyWell transactions: ${url}?${params}`);
 
-  // Parse MyWell API token for AWS authentication
-  // Expected format: AccessKeyId:SecretAccessKey or just AccessKeyId if secret is separate
-  const tokenParts = MYWELL_API_TOKEN.split(':');
-  const accessKeyId = tokenParts[0];
-  const secretAccessKey = tokenParts[1] || process.env.MYWELL_SECRET_KEY || '';
+  // Use MyWell API credentials for authentication
+  const accessKeyId = MYWELL_API_TOKEN_PUBLIC;
+  const secretAccessKey = MYWELL_API_TOKEN_PRIVATE;
 
-  // For thorough testing, let's try multiple authentication approaches
+  // MyWell API authentication methods with proper credentials
   const authMethods = [
-    { name: 'Bearer Token', headers: { 'Authorization': `Bearer ${MYWELL_API_TOKEN}` } },
-    { name: 'X-API-Key', headers: { 'X-API-Key': MYWELL_API_TOKEN } },
-    { name: 'Api-Key', headers: { 'Api-Key': MYWELL_API_TOKEN } },
-    { name: 'Simple Token', headers: { 'Authorization': MYWELL_API_TOKEN } },
+    { name: 'Bearer Private Token', headers: { 'Authorization': `Bearer ${MYWELL_API_TOKEN_PRIVATE}` } },
+    { name: 'X-API-Key Private', headers: { 'X-API-Key': MYWELL_API_TOKEN_PRIVATE } },
+    { name: 'Api-Key Private', headers: { 'Api-Key': MYWELL_API_TOKEN_PRIVATE } },
+    { name: 'Bearer Public Token', headers: { 'Authorization': `Bearer ${MYWELL_API_TOKEN_PUBLIC}` } },
+    { name: 'X-API-Key Public', headers: { 'X-API-Key': MYWELL_API_TOKEN_PUBLIC } },
+    { name: 'MyWell Auth Headers', headers: { 'X-MyWell-Public': MYWELL_API_TOKEN_PUBLIC, 'X-MyWell-Private': MYWELL_API_TOKEN_PRIVATE } },
+    { name: 'Combined Auth', headers: { 'Authorization': `${MYWELL_API_TOKEN_PUBLIC}:${MYWELL_API_TOKEN_PRIVATE}` } },
   ];
 
   // If AWS4 is available and we have proper credentials, try AWS authentication first
-  if (aws4 && secretAccessKey && accessKeyId !== MYWELL_API_TOKEN) {
+  if (aws4 && secretAccessKey && accessKeyId) {
     try {
       const requestOptions = {
         host: 'dev-api.mywell.io',
@@ -113,8 +115,8 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
         const errorText = await awsResponse.text();
         console.log(`❌ AWS auth failed: ${awsResponse.status} - ${errorText}`);
       }
-    } catch (awsError) {
-      console.log(`❌ AWS signing error: ${awsError.message}`);
+    } catch (awsError: any) {
+      console.log(`❌ AWS signing error: ${awsError?.message || awsError}`);
     }
   }
 
@@ -131,7 +133,7 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
         headers: {
           ...method.headers,
           'Content-Type': 'application/json',
-        },
+        } as any,
       });
 
       const responseText = await response.text();
@@ -143,8 +145,8 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
         lastError = `${method.name}: ${response.status} - ${responseText}`;
         console.log(`❌ ${lastError}`);
       }
-    } catch (error) {
-      lastError = `${method.name}: ${error.message}`;
+    } catch (error: any) {
+      lastError = `${method.name}: ${error?.message || error}`;
       console.log(`❌ ${lastError}`);
     }
   }
@@ -218,9 +220,9 @@ async function processTransaction(transaction: MyWellTransaction) {
 
     await dbHelpers.upsertTransaction(transactionData);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Failed to process transaction ${transaction.id}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: error?.message || error };
   }
 }
 
@@ -285,9 +287,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.warn('⚠️ Safety break: More than 100 pages detected');
           break;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`❌ Error fetching page ${currentPage}:`, error);
-        errors.push({ page: currentPage, error: error.message });
+        errors.push({ page: currentPage, error: error?.message || error });
         break;
       }
     }
@@ -331,7 +333,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await dbHelpers.updateSyncConfig('mywell_transactions', {
         lastSyncAt: new Date(),
         lastSyncStatus: 'error',
-        lastSyncError: error.message,
+        lastSyncError: (error as any)?.message || String(error),
       });
     } catch (updateError) {
       console.error('Failed to update sync config with error:', updateError);
@@ -339,7 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     return res.status(500).json({ 
       error: 'MyWell sync failed',
-      details: error.message 
+      details: (error as any)?.message || String(error) 
     });
   }
 }
