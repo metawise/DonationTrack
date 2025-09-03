@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { dbHelpers } from '../../lib/database';
 
 const MYWELL_API_BASE = 'https://dev-api.mywell.io/api';
-const MYWELL_API_TOKEN = '84c7f095-8f50-4645-bc65-b0163c104839';
+const MYWELL_API_TOKEN = process.env.MYWELL_API_TOKEN || '84c7f095-8f50-4645-bc65-b0163c104839';
 
 interface MyWellTransaction {
   id: string;
@@ -58,17 +58,42 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
 
   console.log(`🔗 Fetching MyWell transactions: ${url}?${params}`);
 
-  const response = await fetch(`${url}?${params}`, {
-    method: 'GET',
-    headers: {
-      'X-API-Key': MYWELL_API_TOKEN,
-      'Content-Type': 'application/json',
-    },
-  });
+  // Try different authentication methods
+  let response;
+  const authMethods = [
+    { 'Authorization': `Bearer ${MYWELL_API_TOKEN}` },
+    { 'X-API-Key': MYWELL_API_TOKEN },
+    { 'Api-Key': MYWELL_API_TOKEN },
+    { 'Authorization': MYWELL_API_TOKEN }
+  ];
+  
+  let lastError;
+  for (const authHeaders of authMethods) {
+    try {
+      response = await fetch(`${url}?${params}`, {
+        method: 'GET',
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        console.log(`✅ Successful auth with headers:`, Object.keys(authHeaders));
+        break;
+      } else {
+        const errorText = await response.text();
+        lastError = `${response.status}: ${errorText}`;
+        console.log(`❌ Auth failed with ${Object.keys(authHeaders)[0]}:`, lastError);
+      }
+    } catch (error) {
+      lastError = error.message;
+      console.log(`❌ Network error with ${Object.keys(authHeaders)[0]}:`, lastError);
+    }
+  }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`MyWell API error: ${response.status} ${response.statusText} - ${errorText}`);
+  if (!response || !response.ok) {
+    throw new Error(`MyWell API authentication failed. Last error: ${lastError}`);
   }
 
   return response.json();
