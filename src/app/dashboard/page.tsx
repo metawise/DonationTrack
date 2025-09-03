@@ -154,7 +154,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            {METRIC_ICONS.totalDonations}
+            <METRIC_ICONS.totalDonations className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.totalDonations)}</div>
@@ -167,7 +167,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            {METRIC_ICONS.thisMonth}
+            <METRIC_ICONS.thisMonth className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.thisMonth)}</div>
@@ -180,7 +180,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-            {METRIC_ICONS.activeSubscribers}
+            <METRIC_ICONS.activeSubscribers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.activeSubscribers.toLocaleString()}</div>
@@ -193,7 +193,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Donation</CardTitle>
-            {METRIC_ICONS.avgDonation}
+            <METRIC_ICONS.avgDonation className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(metrics.avgDonation)}</div>
@@ -263,13 +263,13 @@ export default function Dashboard() {
                       }
                     </p>
                     <p className="text-sm text-gray-500 truncate">
-                      {formatDate(transaction.createdAt)} • {transaction.description || 'No description'}
+                      {formatDate(transaction.createdAt.toString())} • {transaction.description || 'No description'}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge 
                       variant="outline"
-                      className={`${STATUS_COLORS[transaction.status]} ${TYPE_COLORS[transaction.type]} border`}
+                      className={`${STATUS_COLORS[transaction.status as keyof typeof STATUS_COLORS]} ${TYPE_COLORS[transaction.type as keyof typeof TYPE_COLORS]} border`}
                     >
                       {transaction.status}
                     </Badge>
