@@ -15,26 +15,7 @@ import { useState, useEffect, useRef } from "react";
 import { TransactionDetailModal } from "@/components/modals/transaction-detail-modal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-
-type TransactionWithCustomer = {
-  id: string;
-  externalCustomerId: string;
-  customerId: string | null;
-  type: string;
-  status: string;
-  kind: string;
-  amount: number;
-  emailAddress: string | null;
-  paymentMethod: string | null;
-  description: string | null;
-  createdAt: Date;
-  customer: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string | null;
-  } | null;
-};
+import { TransactionWithCustomer } from "@shared/schema";
 
 type TransactionsResponse = {
   transactions: TransactionWithCustomer[];

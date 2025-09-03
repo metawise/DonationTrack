@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { setUser } = useAuth();
+  const { refreshAuth } = useAuth();
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +93,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData.user);
+        refreshAuth(); // Refresh the auth context to load the user
         toast({
           title: 'Welcome!',
           description: 'You have been successfully logged in.',

@@ -154,12 +154,12 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            {METRIC_ICONS.revenue}
+            {METRIC_ICONS.totalDonations}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics.totalRevenue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.totalDonations)}</div>
             <p className="text-xs text-muted-foreground">
-              From {metrics.totalTransactions} donations
+              Total donation amount
             </p>
           </CardContent>
         </Card>
@@ -167,10 +167,10 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            {METRIC_ICONS.monthly}
+            {METRIC_ICONS.thisMonth}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics.monthlyRevenue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.thisMonth)}</div>
             <p className="text-xs text-muted-foreground">
               This month's donations
             </p>
@@ -180,10 +180,10 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-            {METRIC_ICONS.customers}
+            {METRIC_ICONS.activeSubscribers}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalCustomers.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{metrics.activeSubscribers.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Total registered donors
             </p>
@@ -193,10 +193,10 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Donation</CardTitle>
-            {METRIC_ICONS.average}
+            {METRIC_ICONS.avgDonation}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(metrics.averageDonation)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(metrics.avgDonation)}</div>
             <p className="text-xs text-muted-foreground">
               Per transaction average
             </p>
