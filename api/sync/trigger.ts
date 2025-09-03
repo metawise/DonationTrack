@@ -26,28 +26,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     console.log(`📅 Sync date range: ${startDateStr} to ${endDateStr}`);
     
-    // Call the MyWell sync API internally
-    const baseUrl = req.headers.host ? `http://${req.headers.host}` : 'http://localhost:5000';
-    console.log(`🔗 Calling internal sync: ${baseUrl}/api/sync/mywell`);
+    // Import and call MyWell sync directly to avoid HTTP issues
+    const { default: myWellHandler } = await import('./mywell');
     
-    const myWellResponse = await fetch(`${baseUrl}/api/sync/mywell`, {
+    // Create a mock request/response for internal call
+    const mockReq = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         startDate: startDateStr,
         endDate: endDateStr,
-      }),
-    });
+      },
+    } as any;
+    
+    let syncResult: any;
+    const mockRes = {
+      status: (code: number) => mockRes,
+      json: (data: any) => { syncResult = data; return mockRes; },
+      setHeader: () => mockRes,
+    } as any;
+    
+    console.log(`🔗 Calling MyWell sync directly with dates: ${startDateStr} to ${endDateStr}`);
+    await myWellHandler(mockReq, mockRes);
 
-    if (!myWellResponse.ok) {
-      const errorText = await myWellResponse.text();
-      throw new Error(`MyWell sync failed: ${myWellResponse.status} ${errorText}`);
+    if (!syncResult) {
+      throw new Error('MyWell sync failed: No response received');
     }
 
-    const syncResult = await myWellResponse.json();
     console.log('✅ Sync trigger completed:', syncResult.result);
     
     return res.status(200).json({
