@@ -61,7 +61,7 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
   const response = await fetch(`${url}?${params}`, {
     method: 'GET',
     headers: {
-      'Authorization': `Bearer ${MYWELL_API_TOKEN}`,
+      'X-API-Key': MYWELL_API_TOKEN,
       'Content-Type': 'application/json',
     },
   });
