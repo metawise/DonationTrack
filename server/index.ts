@@ -43,11 +43,14 @@ app.use('/api', async (req, res, next) => {
       const apiHandler = handler.default || handler;
       
       if (typeof apiHandler === 'function') {
-        // Convert Express req/res to Vercel-style format
+        // Convert Express req/res to Vercel-style format with proper headers
         const vercelReq = {
           ...req,
           query: { ...req.query, ...req.params },
-          body: req.body
+          body: req.body,
+          headers: { ...req.headers }, // Ensure headers are properly passed
+          method: req.method,
+          url: req.url
         };
         
         await apiHandler(vercelReq, res);
@@ -78,7 +81,10 @@ app.use('/api/:segment/:id/:action', async (req, res) => {
         const vercelReq = {
           ...req,
           query: { ...req.query, id },
-          body: req.body
+          body: req.body,
+          headers: { ...req.headers }, // Ensure headers are properly passed
+          method: req.method,
+          url: req.url
         };
         
         await apiHandler(vercelReq, res);
