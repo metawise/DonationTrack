@@ -51,12 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🔑 Auth context: User authenticated', authData.user);
       setUser(authData.user);
       setIsInitialized(true);
-    } else if (error) {
-      console.log('❌ Auth context: Authentication failed', error.message);
+    } else if (error || (!isLoading && !authData)) {
+      console.log('❌ Auth context: Authentication failed', error?.message || 'No auth data');
       setUser(null);
       setIsInitialized(true);
     }
-  }, [authData, error]);
+  }, [authData, error, isLoading]);
 
   const refreshAuth = () => {
     refetch();
