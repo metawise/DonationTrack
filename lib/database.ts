@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../shared/schema';
-import { eq, desc, count, sum, sql, and, gte } from 'drizzle-orm';
+import { eq, desc, count, sum, sql, and, gte, or } from 'drizzle-orm';
 import { subDays, startOfMonth } from 'date-fns';
 
 // Initialize database connection
@@ -46,6 +46,29 @@ export const dbHelpers = {
       .returning();
     
     return newCustomer;
+  },
+
+  async findCustomerByName(firstName: string, lastName: string) {
+    const [customer] = await db.select()
+      .from(schema.customers)
+      .where(
+        and(
+          eq(schema.customers.firstName, firstName),
+          eq(schema.customers.lastName, lastName)
+        )
+      )
+      .limit(1);
+    
+    return customer || null;
+  },
+
+  async updateCustomer(id: string, customerData: any) {
+    const [updatedCustomer] = await db.update(schema.customers)
+      .set({ ...customerData, updatedAt: new Date() })
+      .where(eq(schema.customers.id, id))
+      .returning();
+    
+    return updatedCustomer;
   },
 
   // Transactions
@@ -111,6 +134,31 @@ export const dbHelpers = {
       .returning();
     
     return newTransaction;
+  },
+
+  async upsertTransaction(transactionData: any) {
+    try {
+      // Try to find existing transaction by ID
+      const existing = await this.getTransactionById(transactionData.id);
+      
+      if (existing) {
+        // Update existing transaction
+        const [updated] = await db.update(schema.transactions)
+          .set({ ...transactionData, updatedAt: new Date() })
+          .where(eq(schema.transactions.id, transactionData.id))
+          .returning();
+        return updated;
+      } else {
+        // Create new transaction
+        const [created] = await db.insert(schema.transactions)
+          .values(transactionData)
+          .returning();
+        return created;
+      }
+    } catch (error) {
+      console.error('Upsert transaction error:', error);
+      throw error;
+    }
   },
 
   // Staff
@@ -198,11 +246,29 @@ export const dbHelpers = {
       .orderBy(desc(schema.syncConfig.createdAt));
   },
 
+  async getSyncConfig(id: string) {
+    const [config] = await db.select()
+      .from(schema.syncConfig)
+      .where(eq(schema.syncConfig.id, id))
+      .limit(1);
+    
+    return config || null;
+  },
+
   async createSyncConfig(config: any) {
     const [newConfig] = await db.insert(schema.syncConfig)
       .values(config)
       .returning();
     
     return newConfig;
+  },
+
+  async updateSyncConfig(id: string, updates: any) {
+    const [updatedConfig] = await db.update(schema.syncConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.syncConfig.id, id))
+      .returning();
+    
+    return updatedConfig;
   }
 };
