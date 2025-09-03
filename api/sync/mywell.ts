@@ -1,12 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { dbHelpers } from '../../lib/database';
 // AWS signing library for MyWell API authentication
-let aws4: any;
-try {
-  aws4 = require('aws4');
-} catch (error) {
-  console.log('AWS4 library not available, using fallback authentication');
-}
+import * as aws4 from 'aws4';
 
 const MYWELL_API_BASE = 'https://dev-api.mywell.io/api';
 const MYWELL_API_TOKEN_PRIVATE = process.env.MYWELL_API_TOKEN_PRIVATE || '6db9e203-041c-4c5f-80ae-02382a94d609';
@@ -66,7 +61,7 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
 
   console.log(`🔗 Fetching MyWell transactions: ${url}?${params}`);
 
-  // Use MyWell API credentials for authentication
+  // MyWell uses AWS-style authentication with their API credentials
   const accessKeyId = MYWELL_API_TOKEN_PUBLIC;
   const secretAccessKey = MYWELL_API_TOKEN_PRIVATE;
 
@@ -81,43 +76,43 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
     { name: 'Combined Auth', headers: { 'Authorization': `${MYWELL_API_TOKEN_PUBLIC}:${MYWELL_API_TOKEN_PRIVATE}` } },
   ];
 
-  // If AWS4 is available and we have proper credentials, try AWS authentication first
-  if (aws4 && secretAccessKey && accessKeyId) {
-    try {
-      const requestOptions = {
-        host: 'dev-api.mywell.io',
-        path: `/api/transaction/gift/search?${params}`,
-        method: 'GET',
-        service: 'execute-api',
-        region: 'us-east-1',
-        headers: {
-          'Content-Type': 'application/json',
-          'Host': 'dev-api.mywell.io'
-        }
-      };
-
-      const signedRequest = aws4.sign(requestOptions, {
-        accessKeyId,
-        secretAccessKey
-      });
-
-      console.log(`🔐 Trying AWS Signature V4 with access key: ${accessKeyId.substring(0, 8)}...`);
-
-      const awsResponse = await fetch(`https://${signedRequest.host}${signedRequest.path}`, {
-        method: signedRequest.method,
-        headers: signedRequest.headers,
-      });
-
-      if (awsResponse.ok) {
-        console.log(`✅ AWS authentication successful!`);
-        return awsResponse.json();
-      } else {
-        const errorText = await awsResponse.text();
-        console.log(`❌ AWS auth failed: ${awsResponse.status} - ${errorText}`);
+  // Try AWS Signature V4 authentication first (MyWell's primary auth method)
+  try {
+    console.log(`🔐 Trying AWS Signature V4 authentication...`);
+    
+    const requestOptions = {
+      host: 'dev-api.mywell.io',
+      path: `/api/transaction/gift/search?${params}`,
+      method: 'GET',
+      service: 'execute-api',
+      region: 'us-east-1',
+      headers: {
+        'Content-Type': 'application/json',
+        'Host': 'dev-api.mywell.io'
       }
-    } catch (awsError: any) {
-      console.log(`❌ AWS signing error: ${awsError?.message || awsError}`);
+    };
+
+    const signedRequest = aws4.sign(requestOptions, {
+      accessKeyId,
+      secretAccessKey
+    });
+
+    console.log(`📤 AWS signed request headers:`, Object.keys(signedRequest.headers));
+
+    const awsResponse = await fetch(`https://${signedRequest.host}${signedRequest.path}`, {
+      method: signedRequest.method,
+      headers: signedRequest.headers,
+    });
+
+    if (awsResponse.ok) {
+      console.log(`✅ AWS Signature V4 authentication successful!`);
+      return awsResponse.json();
+    } else {
+      const errorText = await awsResponse.text();
+      console.log(`❌ AWS auth failed: ${awsResponse.status} - ${errorText}`);
     }
+  } catch (awsError: any) {
+    console.log(`❌ AWS signing error: ${awsError?.message || awsError}`);
   }
 
   // Try each authentication method
