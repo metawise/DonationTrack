@@ -9,7 +9,7 @@ export function Sidebar() {
   const location = usePathname();
 
   return (
-    <div className="w-64 bg-white shadow-sm border-r border-gray-200">
+    <div className="w-64 bg-white shadow-sm border-r border-gray-200 flex-shrink-0">
       <div className="p-6">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 flex items-center justify-center">
