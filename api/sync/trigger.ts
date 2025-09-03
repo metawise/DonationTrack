@@ -27,10 +27,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`📅 Sync date range: ${startDateStr} to ${endDateStr}`);
     
     // Call the MyWell sync API internally
-    const myWellResponse = await fetch(`${req.headers.host ? `http://${req.headers.host}` : 'http://localhost:5000'}/api/sync/mywell`, {
+    const baseUrl = req.headers.host ? `http://${req.headers.host}` : 'http://localhost:5000';
+    console.log(`🔗 Calling internal sync: ${baseUrl}/api/sync/mywell`);
+    
+    const myWellResponse = await fetch(`${baseUrl}/api/sync/mywell`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         startDate: startDateStr,
