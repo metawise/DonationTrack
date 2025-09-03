@@ -1,3 +1,6 @@
 {
-  "/sync/page": "app/sync/page.js"
+  "/sync/page": "app/sync/page.js",
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/dashboard/page": "app/dashboard/page.js"
 }
