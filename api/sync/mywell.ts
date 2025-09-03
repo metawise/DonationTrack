@@ -149,41 +149,9 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
     }
   }
 
-  // If all methods fail, let's create mock data for testing sync mechanism
-  console.log(`⚠️ All authentication methods failed. Creating mock transaction data for testing...`);
-  
-  const mockTransactions: MyWellResponse = {
-    data: [
-      {
-        id: `mock-transaction-${Date.now()}`,
-        externalCustomerId: `mock-customer-${Date.now()}`,
-        type: 'SALE',
-        kind: 'DONATION',
-        amount: 5000, // $50.00
-        status: 'SETTLED',
-        billingAddress: {
-          firstName: 'Test',
-          lastName: 'Customer',
-          email: 'test@example.com',
-          city: 'Test City',
-          state: 'TS',
-          country: 'US',
-          street1: '123 Test St',
-          postalCode: '12345'
-        },
-        description: 'Test donation for sync verification',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-    ],
-    count: 1,
-    totalCount: 1,
-    page: 1,
-    totalPages: 1
-  };
-
-  console.log(`🧪 Using mock data to test sync mechanism: ${mockTransactions.data.length} transactions`);
-  return mockTransactions;
+  // If all authentication methods fail, throw an error instead of creating mock data
+  console.log(`❌ All authentication methods failed. MyWell API authentication required.`);
+  throw new Error(`MyWell API authentication failed. Last error: ${lastError}. Please verify your API token is correct.`);
 }
 
 async function processTransaction(transaction: MyWellTransaction) {
