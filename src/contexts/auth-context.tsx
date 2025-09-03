@@ -24,6 +24,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Force initialization after 5 seconds if still loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!isInitialized) {
+        console.log('🚨 Auth timeout: Force initializing as not authenticated');
+        setUser(null);
+        setIsInitialized(true);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [isInitialized]);
 
   const { data: authData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/auth/me'],
@@ -41,22 +54,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return data;
     },
     retry: false,
-    refetchOnWindowFocus: false, // Disable auto-refetch to prevent loops
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: false,
+    staleTime: 0, // Don't cache - always fresh
+    gcTime: 0, // Don't keep in cache
   });
 
   useEffect(() => {
+    console.log('📊 Auth state update:', { 
+      hasAuthData: !!authData, 
+      hasUser: !!authData?.user, 
+      hasError: !!error, 
+      isLoading, 
+      isInitialized 
+    });
+    
     if (authData?.user) {
       console.log('🔑 Auth context: User authenticated', authData.user);
       setUser(authData.user);
       setIsInitialized(true);
-    } else if (error || (!isLoading && !authData)) {
-      console.log('❌ Auth context: Authentication failed', error?.message || 'No auth data');
+    } else if (error) {
+      console.log('❌ Auth context: Authentication failed', error?.message);
+      setUser(null);
+      setIsInitialized(true);
+    } else if (!isLoading && authData && !authData.user) {
+      console.log('❌ Auth context: No user in response');
+      setUser(null);
+      setIsInitialized(true);
+    } else if (!isLoading && !authData) {
+      console.log('❌ Auth context: No auth data received');
       setUser(null);
       setIsInitialized(true);
     }
-  }, [authData, error, isLoading]);
+  }, [authData, error, isLoading, isInitialized]);
 
   const refreshAuth = () => {
     refetch();

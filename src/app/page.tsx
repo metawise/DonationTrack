@@ -9,14 +9,23 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
+    console.log('🔄 Root page effect:', { isLoading, isAuthenticated });
     if (!isLoading) {
       if (isAuthenticated) {
-        router.push('/dashboard')
+        console.log('➡️ Redirecting to dashboard...');
+        router.replace('/dashboard'); // Use replace instead of push
       } else {
-        router.push('/login')
+        console.log('➡️ Redirecting to login...');
+        router.replace('/login'); // Use replace instead of push
       }
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router]);
+
+  // Also redirect immediately if already authenticated
+  if (!isLoading && isAuthenticated) {
+    console.log('🚀 Immediate redirect to dashboard');
+    router.replace('/dashboard');
+  }
 
   if (isLoading) {
     return (
