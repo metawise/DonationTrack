@@ -1,3 +1,7 @@
+"use client"
+
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { MainLayout } from "@/components/layout/main-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -585,5 +589,7 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
     </div>
+    </MainLayout>
+    </ProtectedRoute>
   );
 }

@@ -1,3 +1,7 @@
+"use client"
+
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { MainLayout } from "@/components/layout/main-layout";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -291,5 +295,7 @@ export default function StaffPage() {
         mode={modalMode}
       />
     </div>
+    </MainLayout>
+    </ProtectedRoute>
   );
 }

@@ -1,3 +1,7 @@
+"use client"
+
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { MainLayout } from "@/components/layout/main-layout";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -424,5 +428,7 @@ export default function CreateDonation() {
         </CardContent>
       </Card>
     </div>
+    </MainLayout>
+    </ProtectedRoute>
   );
 }
