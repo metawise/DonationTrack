@@ -13,19 +13,13 @@ export default function HomePage() {
     if (!isLoading) {
       if (isAuthenticated) {
         console.log('➡️ Redirecting to dashboard...');
-        router.replace('/dashboard'); // Use replace instead of push
+        router.replace('/dashboard');
       } else {
         console.log('➡️ Redirecting to login...');
-        router.replace('/login'); // Use replace instead of push
+        router.replace('/login');
       }
     }
   }, [isAuthenticated, isLoading, router]);
-
-  // Also redirect immediately if already authenticated
-  if (!isLoading && isAuthenticated) {
-    console.log('🚀 Immediate redirect to dashboard');
-    router.replace('/dashboard');
-  }
 
   if (isLoading) {
     return (
