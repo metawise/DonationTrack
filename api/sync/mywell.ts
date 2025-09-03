@@ -52,14 +52,8 @@ interface MyWellResponse {
 
 async function fetchMyWellTransactions(startDate: string, endDate: string, page = 1, limit = 100): Promise<MyWellResponse> {
   const url = `${MYWELL_API_BASE}/transaction/gift/search`;
-  const params = new URLSearchParams({
-    startDate,
-    endDate,
-    page: page.toString(),
-    limit: limit.toString()
-  });
 
-  console.log(`🔗 Fetching MyWell transactions: ${url}?${params}`);
+  console.log(`🔗 Fetching MyWell transactions: ${url}`);
 
   // MyWell uses AWS-style authentication with their API credentials
   const accessKeyId = MYWELL_API_TOKEN_PUBLIC;
@@ -76,16 +70,45 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
     { name: 'Combined Auth', headers: { 'Authorization': `${MYWELL_API_TOKEN_PUBLIC}:${MYWELL_API_TOKEN_PRIVATE}` } },
   ];
 
-  // Try AWS Signature V4 authentication first (MyWell's primary auth method)
+  // Try simple Bearer token authentication first 
+  try {
+    console.log(`🔑 Trying Bearer token authentication...`);
+    
+    const requestBody = {};
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${MYWELL_API_TOKEN_PRIVATE}`,
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (response.ok) {
+      console.log(`✅ Bearer token authentication successful!`);
+      return response.json();
+    } else {
+      const errorText = await response.text();
+      console.log(`❌ Bearer token failed: ${response.status} - ${errorText}`);
+    }
+  } catch (error: any) {
+    console.log(`❌ Bearer token error: ${error?.message || error}`);
+  }
+
+  // Try AWS Signature V4 authentication (fallback method)
   try {
     console.log(`🔐 Trying AWS Signature V4 authentication...`);
     
+    const requestBody = JSON.stringify({});
+    
     const requestOptions = {
       host: 'dev-api.mywell.io',
-      path: `/api/transaction/gift/search?${params}`,
-      method: 'GET',
+      path: '/api/transaction/gift/search',
+      method: 'POST',
       service: 'execute-api',
       region: 'us-east-1',
+      body: requestBody,
       headers: {
         'Content-Type': 'application/json',
         'Host': 'dev-api.mywell.io'
@@ -97,11 +120,12 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
       secretAccessKey
     });
 
-    console.log(`📤 AWS signed request headers:`, Object.keys(signedRequest.headers));
+    console.log(`📤 AWS signed request headers:`, Object.keys(signedRequest.headers || {}));
 
     const awsResponse = await fetch(`https://${signedRequest.host}${signedRequest.path}`, {
       method: signedRequest.method,
-      headers: signedRequest.headers,
+      headers: signedRequest.headers as Record<string, string>,
+      body: requestBody
     });
 
     if (awsResponse.ok) {
@@ -123,12 +147,15 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
     try {
       console.log(`🔑 Testing ${method.name}...`);
       
-      const response = await fetch(`${url}?${params}`, {
-        method: 'GET',
+      const requestBody = {};
+
+      const response = await fetch(url, {
+        method: 'POST',
         headers: {
           ...method.headers,
           'Content-Type': 'application/json',
         } as any,
+        body: JSON.stringify(requestBody)
       });
 
       const responseText = await response.text();
@@ -261,20 +288,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`📄 Fetching page ${currentPage}...`);
         const response = await fetchMyWellTransactions(startDate, endDate, currentPage);
         
-        console.log(`✅ Retrieved ${response.data.length} transactions from page ${currentPage}`);
+        // Handle different possible response structures
+        const transactions = response.data || response.transactions || response;
+        const totalCount = response.totalCount || response.total || 0;
+        const totalPages = response.totalPages || response.pages || 1;
+        
+        console.log(`📊 Page ${currentPage} full response:`, JSON.stringify(response, null, 2));
+        console.log(`✅ Retrieved ${Array.isArray(transactions) ? transactions.length : 0} transactions from page ${currentPage}`);
         
         // Process each transaction
-        for (const transaction of response.data) {
-          const result = await processTransaction(transaction);
-          if (result.success) {
-            transactionsProcessed++;
-          } else {
-            errors.push({ transactionId: transaction.id, error: result.error });
+        if (Array.isArray(transactions)) {
+          for (const transaction of transactions) {
+            const result = await processTransaction(transaction);
+            if (result.success) {
+              transactionsProcessed++;
+            } else {
+              errors.push({ transactionId: transaction.id, error: result.error });
+            }
           }
+        } else {
+          console.log('⚠️ No transactions array found in response');
         }
         
-        totalTransactions += response.data.length;
-        hasMorePages = currentPage < response.totalPages;
+        totalTransactions += Array.isArray(transactions) ? transactions.length : 0;
+        hasMorePages = currentPage < totalPages;
         currentPage++;
         
         // Safety break to prevent infinite loops
