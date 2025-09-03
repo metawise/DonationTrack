@@ -1,4 +1,4 @@
-import { useLocation } from "wouter";
+import { usePathname } from "next/navigation";
 import { Bell, User, Settings, LogOut } from "lucide-react";
 import { NAVIGATION_ITEMS } from "@/lib/constants";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -9,7 +9,7 @@ import { StaffModal } from "@/components/modals/staff-modal";
 import { useAuth } from "@/contexts/auth-context";
 
 export function Header() {
-  const [location] = useLocation();
+  const location = usePathname();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { user, logout } = useAuth();
   

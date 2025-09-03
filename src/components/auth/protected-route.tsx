@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLocation } from "wouter";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 interface ProtectedRouteProps {
@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const [location] = useLocation();
+  const location = usePathname();
 
   console.log('🛡️ ProtectedRoute check:', {
     isAuthenticated,
