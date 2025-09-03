@@ -109,7 +109,9 @@ export default function CreateDonation() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <ProtectedRoute>
+      <MainLayout>
+        <div className="max-w-4xl mx-auto">
       <Card>
         <CardHeader>
           <CardTitle>Create Manual Donation</CardTitle>
@@ -427,8 +429,8 @@ export default function CreateDonation() {
           </Form>
         </CardContent>
       </Card>
-    </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
     </ProtectedRoute>
   );
 }

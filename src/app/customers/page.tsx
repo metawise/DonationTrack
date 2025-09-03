@@ -202,7 +202,9 @@ export default function Customers() {
   }
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <MainLayout>
+        <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Users className="h-5 w-5 text-jfj-blue" />
@@ -588,8 +590,8 @@ export default function Customers() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
     </ProtectedRoute>
   );
 }

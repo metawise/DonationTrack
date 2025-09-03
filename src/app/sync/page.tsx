@@ -160,7 +160,9 @@ export default function SyncPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <MainLayout>
+        <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -330,8 +332,8 @@ export default function SyncPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
     </ProtectedRoute>
   );
 }

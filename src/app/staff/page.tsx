@@ -108,7 +108,9 @@ export default function StaffPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <ProtectedRoute>
+      <MainLayout>
+        <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between mb-4">
@@ -294,8 +296,8 @@ export default function StaffPage() {
         onClose={() => setIsModalOpen(false)}
         mode={modalMode}
       />
-    </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
     </ProtectedRoute>
   );
 }
