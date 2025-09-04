@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbHelpers } from '@shared/database-helpers';
-import { createExternalCustomerId } from '@lib/utils';
+
+// Helper function to create a unique external customer ID
+function createExternalCustomerId(firstName: string, lastName: string, email: string | null) {
+  const baseId = `${firstName}_${lastName}_${email || 'no-email'}`.toLowerCase().replace(/\s+/g, '-');
+  return baseId;
+}
 
 async function fetchMyWellTransactions(page: number = 1) {
   const API_BASE_URL = 'https://dev-api.mywell.io/api/transaction/gift/search';
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
             transaction.customerEmail
           );
 
-          let customer = await dbHelpers.getCustomerByExternalId(externalCustomerId);
+          let customer = await dbHelpers.findCustomerByExternalId(externalCustomerId);
 
           if (!customer) {
             customer = await dbHelpers.createCustomer({
@@ -90,11 +95,12 @@ export async function POST(request: NextRequest) {
             console.log(`✅ Created new customer: ${customer.firstName} ${customer.lastName}`);
           }
 
-          // Create transaction
-          const existingTransaction = await dbHelpers.getTransactionByExternalId(transaction.transactionId);
+          // Create transaction - use transactionId as the ID
+          const existingTransaction = await dbHelpers.getTransactionById(transaction.transactionId);
 
           if (!existingTransaction) {
             await dbHelpers.createTransaction({
+              id: transaction.transactionId,
               externalTransactionId: transaction.transactionId,
               externalCustomerId,
               customerId: customer.id,
@@ -132,7 +138,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Update sync status
-    await dbHelpers.updateSyncStatus({
+    // Update sync status (placeholder - no sync status table yet)
+    console.log('✅ Sync completed successfully', {
       lastSyncDate: new Date(),
       lastSyncStatus: 'success',
       totalRecordsSynced: totalSynced
@@ -150,7 +157,7 @@ export async function POST(request: NextRequest) {
     console.error('MyWell sync error:', error);
     
     // Update sync status with error
-    await dbHelpers.updateSyncStatus({
+    console.error('❌ Sync failed with error', {
       lastSyncDate: new Date(),
       lastSyncStatus: 'error',
       lastSyncError: String(error)

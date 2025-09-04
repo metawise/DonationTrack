@@ -161,6 +161,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/sync/status">
 }
 
+// Validate ../../src/app/api/sync/trigger/route.ts
+{
+  const handler = {} as typeof import("../../src/app/api/sync/trigger/route.js")
+  handler satisfies RouteHandlerConfig<"/api/sync/trigger">
+}
+
 // Validate ../../src/app/api/transactions/[id]/refund/route.ts
 {
   const handler = {} as typeof import("../../src/app/api/transactions/[id]/refund/route.js")

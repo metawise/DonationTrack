@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbHelpers } from '@shared/database-helpers';
 
 export async function GET(request: NextRequest) {
   try {
-    const status = await dbHelpers.getSyncStatus();
-    
-    if (!status) {
-      return NextResponse.json({
-        lastSyncDate: null,
-        lastSyncStatus: 'never_synced',
-        lastSyncError: null,
-        totalRecordsSynced: 0
-      });
-    }
-    
-    return NextResponse.json(status);
+    // For now, return a basic status since sync runs on-demand
+    return NextResponse.json({
+      lastSyncDate: null,
+      lastSyncStatus: 'ready',
+      lastSyncError: null,
+      totalRecordsSynced: 0,
+      message: 'Sync runs on-demand via trigger'
+    });
   } catch (error) {
     console.error('Get sync status error:', error);
     return NextResponse.json({ error: 'Failed to fetch sync status' }, { status: 500 });
