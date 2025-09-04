@@ -1,7 +1,10 @@
 {
-  "/api/sync/trigger/route": "app/api/sync/trigger/route.js",
-  "/page": "app/page.js",
+  "/api/sync/config/route": "app/api/sync/config/route.js",
+  "/api/sync/status/route": "app/api/sync/status/route.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/api/dashboard/metrics/route": "app/api/dashboard/metrics/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/transactions/page": "app/transactions/page.js",
-  "/sync/page": "app/sync/page.js"
+  "/page": "app/page.js"
 }

@@ -11,6 +11,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
+    "/api/sync/trigger/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/sync/trigger/route.js"
+    ],
     "/api/auth/me/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -21,20 +26,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/api/sync/config/route": [
+    "/api/transactions/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/sync/config/route.js"
+      "static/chunks/app/api/transactions/route.js"
     ],
     "/api/dashboard/metrics/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/dashboard/metrics/route.js"
     ],
-    "/api/transactions/route": [
+    "/api/sync/config/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/transactions/route.js"
+      "static/chunks/app/api/sync/config/route.js"
     ],
     "/transactions/page": [
       "static/chunks/webpack.js",
@@ -45,21 +50,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/sync/status/route.js"
-    ],
-    "/api/sync/trigger/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/sync/trigger/route.js"
-    ],
-    "/sync/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/sync/page.js"
-    ],
-    "/api/sync/mywell/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/sync/mywell/route.js"
     ]
   }
 }
