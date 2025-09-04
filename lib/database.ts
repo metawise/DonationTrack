@@ -62,13 +62,27 @@ export const dbHelpers = {
     return customer || null;
   },
 
-  async updateCustomer(id: string, customerData: any) {
-    const [updatedCustomer] = await db.update(schema.customers)
-      .set({ ...customerData, updatedAt: new Date() })
-      .where(eq(schema.customers.id, id))
-      .returning();
+  async findCustomerByExternalId(externalCustomerId: string) {
+    const [customer] = await db.select()
+      .from(schema.customers)
+      .where(eq(schema.customers.externalCustomerId, externalCustomerId))
+      .limit(1);
     
-    return updatedCustomer;
+    return customer || null;
+  },
+
+  async updateCustomer(id: string, customerData: any) {
+    try {
+      const [updatedCustomer] = await db.update(schema.customers)
+        .set({ ...customerData, updatedAt: new Date() })
+        .where(eq(schema.customers.id, id))
+        .returning();
+      
+      return updatedCustomer;
+    } catch (error: any) {
+      console.error(`Error updating customer ${id}:`, error);
+      throw error;
+    }
   },
 
   // Transactions
@@ -136,28 +150,41 @@ export const dbHelpers = {
     return newTransaction;
   },
 
-  async upsertTransaction(transactionData: any) {
+  async upsertTransaction(transaction: any) {
     try {
-      // Try to find existing transaction by ID
-      const existing = await this.getTransactionById(transactionData.id);
-      
+      // First try to find existing transaction
+      const [existing] = await db.select()
+        .from(schema.transactions)
+        .where(eq(schema.transactions.id, transaction.id))
+        .limit(1);
+
       if (existing) {
         // Update existing transaction
         const [updated] = await db.update(schema.transactions)
-          .set({ ...transactionData, updatedAt: new Date() })
-          .where(eq(schema.transactions.id, transactionData.id))
+          .set({ ...transaction, updatedAt: new Date(), syncedAt: new Date() })
+          .where(eq(schema.transactions.id, transaction.id))
           .returning();
         return updated;
       } else {
         // Create new transaction
         const [created] = await db.insert(schema.transactions)
-          .values(transactionData)
+          .values(transaction)
           .returning();
         return created;
       }
-    } catch (error) {
-      console.error('Upsert transaction error:', error);
+    } catch (error: any) {
+      console.error(`Error upserting transaction ${transaction.id}:`, error);
       throw error;
+    }
+  },
+
+  async deleteExistingTransaction(id: string) {
+    try {
+      await db.delete(schema.transactions)
+        .where(eq(schema.transactions.id, id));
+    } catch (error: any) {
+      console.error(`Error deleting transaction ${id}:`, error);
+      // Continue silently if transaction doesn't exist
     }
   },
 

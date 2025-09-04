@@ -9,7 +9,7 @@ const MYWELL_API_TOKEN_PUBLIC = process.env.MYWELL_API_TOKEN_PUBLIC || 'pub_32CU
 
 interface MyWellTransaction {
   id: string;
-  externalCustomerId: string;
+  customerId: string; // MyWell uses 'customerId', not 'externalCustomerId'
   type: string;
   kind: string;
   amount: number;
@@ -22,6 +22,8 @@ interface MyWellTransaction {
   subscriptionId?: string;
   settlementBatchId?: string;
   billingAddress?: {
+    id?: string;
+    customerId?: string;
     firstName?: string;
     lastName?: string;
     email?: string;
@@ -36,8 +38,8 @@ interface MyWellTransaction {
   shippingAddress?: any;
   ipAddress?: string;
   description?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   settledAt?: string;
   piUpdatedAt?: string;
 }
@@ -61,6 +63,7 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
 
   // MyWell API authentication methods with proper credentials
   const authMethods = [
+    { name: 'apiToken Header', headers: { 'apiToken': MYWELL_API_TOKEN_PRIVATE } },
     { name: 'Bearer Private Token', headers: { 'Authorization': `Bearer ${MYWELL_API_TOKEN_PRIVATE}` } },
     { name: 'X-API-Key Private', headers: { 'X-API-Key': MYWELL_API_TOKEN_PRIVATE } },
     { name: 'Api-Key Private', headers: { 'Api-Key': MYWELL_API_TOKEN_PRIVATE } },
@@ -70,9 +73,9 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
     { name: 'Combined Auth', headers: { 'Authorization': `${MYWELL_API_TOKEN_PUBLIC}:${MYWELL_API_TOKEN_PRIVATE}` } },
   ];
 
-  // Try simple Bearer token authentication first 
+  // Try MyWell's actual API Key authentication first
   try {
-    console.log(`🔑 Trying Bearer token authentication...`);
+    console.log(`🔑 Trying MyWell API Key authentication...`);
     
     const requestBody = {};
 
@@ -80,20 +83,22 @@ async function fetchMyWellTransactions(startDate: string, endDate: string, page 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MYWELL_API_TOKEN_PRIVATE}`,
+        'apiToken': MYWELL_API_TOKEN_PRIVATE,
       },
       body: JSON.stringify(requestBody)
     });
 
     if (response.ok) {
-      console.log(`✅ Bearer token authentication successful!`);
-      return response.json();
+      console.log(`✅ MyWell API Key authentication successful!`);
+      const responseData = await response.json();
+      console.log(`📊 MyWell API response:`, JSON.stringify(responseData, null, 2));
+      return responseData;
     } else {
       const errorText = await response.text();
-      console.log(`❌ Bearer token failed: ${response.status} - ${errorText}`);
+      console.log(`❌ API Key failed: ${response.status} - ${errorText}`);
     }
   } catch (error: any) {
-    console.log(`❌ Bearer token error: ${error?.message || error}`);
+    console.log(`❌ API Key error: ${error?.message || error}`);
   }
 
   // Try AWS Signature V4 authentication (fallback method)
@@ -184,28 +189,30 @@ async function processTransaction(transaction: MyWellTransaction) {
     let customerId: string | null = null;
     if (transaction.billingAddress?.firstName && transaction.billingAddress?.lastName) {
       const customerData = {
-        externalCustomerId: transaction.externalCustomerId,
+        externalCustomerId: transaction.customerId, // Use MyWell's customerId as our externalCustomerId
         firstName: transaction.billingAddress.firstName,
         lastName: transaction.billingAddress.lastName,
         email: transaction.billingAddress.email || null,
         phone: transaction.billingAddress.phone || null,
-        address: transaction.billingAddress.street1 || null,
+        street1: transaction.billingAddress.street1 || null,
+        street2: transaction.billingAddress.street2 || null,
         city: transaction.billingAddress.city || null,
         state: transaction.billingAddress.state || null,
         postalCode: transaction.billingAddress.postalCode || null,
         country: transaction.billingAddress.country || null,
       };
 
-      // Check if customer already exists
-      const existingCustomer = await dbHelpers.findCustomerByName(
-        customerData.firstName, 
-        customerData.lastName
-      );
+      // Check if customer already exists by MyWell customerId (externalCustomerId)
+      const existingCustomer = await dbHelpers.findCustomerByExternalId(transaction.customerId);
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
-        // Update customer info if needed
-        await dbHelpers.updateCustomer(customerId, customerData);
+        // Update customer info if needed (but skip externalCustomerId to avoid constraint violation)
+        const updateData: any = { ...customerData };
+        if ('externalCustomerId' in updateData) {
+          delete updateData.externalCustomerId; // Don't update the unique constraint field
+        }
+        await dbHelpers.updateCustomer(customerId, updateData);
       } else {
         // Create new customer
         const newCustomer = await dbHelpers.createCustomer(customerData);
@@ -213,10 +220,10 @@ async function processTransaction(transaction: MyWellTransaction) {
       }
     }
 
-    // Create or update transaction
+    // Create or update transaction - map exactly to MyWell structure
     const transactionData = {
       id: transaction.id,
-      externalCustomerId: transaction.externalCustomerId,
+      externalCustomerId: transaction.customerId, // Use MyWell's customerId as our externalCustomerId
       customerId,
       type: transaction.type,
       kind: transaction.kind,
@@ -233,8 +240,8 @@ async function processTransaction(transaction: MyWellTransaction) {
       shippingAddress: transaction.shippingAddress || null,
       ipAddress: transaction.ipAddress || null,
       description: transaction.description || null,
-      createdAt: new Date(transaction.createdAt),
-      updatedAt: new Date(transaction.updatedAt),
+      createdAt: transaction.createdAt ? new Date(transaction.createdAt) : new Date(),
+      updatedAt: transaction.updatedAt ? new Date(transaction.updatedAt) : new Date(),
       settledAt: transaction.settledAt ? new Date(transaction.settledAt) : null,
       piUpdatedAt: transaction.piUpdatedAt ? new Date(transaction.piUpdatedAt) : null,
       syncedAt: new Date(),
@@ -289,9 +296,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const response = await fetchMyWellTransactions(startDate, endDate, currentPage);
         
         // Handle different possible response structures
-        const transactions = response.data || response.transactions || response;
-        const totalCount = response.totalCount || response.total || 0;
-        const totalPages = response.totalPages || response.pages || 1;
+        const transactions = response.data || (response as any).transactions || response;
+        const totalCount = response.totalCount || (response as any).total || 0;
+        const totalPages = response.totalPages || (response as any).pages || 1;
         
         console.log(`📊 Page ${currentPage} full response:`, JSON.stringify(response, null, 2));
         console.log(`✅ Retrieved ${Array.isArray(transactions) ? transactions.length : 0} transactions from page ${currentPage}`);
