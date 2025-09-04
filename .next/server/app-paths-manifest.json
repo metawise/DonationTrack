@@ -1,9 +1,12 @@
 {
-  "/api/transactions/route": "app/api/transactions/route.js",
   "/_not-found/page": "app/_not-found/page.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
   "/api/sync/status/route": "app/api/sync/status/route.js",
-  "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/api/customers/route": "app/api/customers/route.js",
+  "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/transactions/page": "app/transactions/page.js"
+  "/transactions/page": "app/transactions/page.js",
+  "/customers/page": "app/customers/page.js",
+  "/staff/page": "app/staff/page.js",
+  "/sync/page": "app/sync/page.js",
+  "/create-donation/page": "app/create-donation/page.js"
 }
