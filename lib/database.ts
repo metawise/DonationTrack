@@ -221,6 +221,20 @@ export const dbHelpers = {
     return newStaff;
   },
 
+  async updateStaff(id: string, staffData: any) {
+    try {
+      const [updatedStaff] = await db.update(schema.staff)
+        .set({ ...staffData, updatedAt: new Date() })
+        .where(eq(schema.staff.id, id))
+        .returning();
+      
+      return updatedStaff;
+    } catch (error: any) {
+      console.error(`Error updating staff ${id}:`, error);
+      throw error;
+    }
+  },
+
   // Dashboard metrics
   async getDashboardMetrics() {
     const thisMonth = startOfMonth(new Date());

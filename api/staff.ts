@@ -11,8 +11,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const pathParts = req.url?.split('/').filter(Boolean) || [];
-    const staffId = pathParts[pathParts.length - 1]; // Get last part as potential ID
+    // Check for ID in query params (from middleware) or URL path
+    const staffId = req.query?.id || (req.url?.split('/').filter(Boolean) || [])[req.url?.split('/').filter(Boolean).length - 1];
+    
+    console.log('🔍 Staff API Debug:', {
+      method: req.method,
+      url: req.url,
+      query: req.query,
+      staffId,
+      pathParts: req.url?.split('/').filter(Boolean)
+    });
 
     switch (req.method) {
       case 'GET':
@@ -43,12 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!staffId || staffId === 'staff') {
           return res.status(400).json({ error: 'Staff ID required for update' });
         }
-        // For demo purposes, return mock updated data
-        const updatedStaff = {
-          id: staffId,
-          ...req.body,
-          updatedAt: new Date()
-        };
+        // Update staff member in database
+        const updatedStaff = await dbHelpers.updateStaff(staffId, req.body);
+        if (!updatedStaff) {
+          return res.status(404).json({ error: 'Staff member not found' });
+        }
         return res.json(updatedStaff);
 
       case 'DELETE':

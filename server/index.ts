@@ -32,7 +32,47 @@ app.use((req, res, next) => {
   }
 });
 
-// Dynamically import and handle API routes
+// Handle API routes with dynamic IDs (like /api/staff/[id]) - MUST come before general API handler
+app.use('/api/:segment/:id', async (req, res, next) => {
+  try {
+    const { segment, id } = req.params;
+    
+    // Skip if this looks like a nested route with action
+    if (req.path.split('/').length > 4) {
+      return next();
+    }
+    
+    const routePath = path.join(process.cwd(), 'api', `${segment}.ts`);
+    
+    try {
+      const handler = await import(`file://${routePath}`);
+      const apiHandler = handler.default || handler;
+      
+      if (typeof apiHandler === 'function') {
+        const vercelReq = {
+          ...req,
+          query: { ...req.query, id },
+          body: req.body,
+          headers: { ...req.headers },
+          method: req.method,
+          url: req.url
+        };
+        
+        await apiHandler(vercelReq, res);
+      } else {
+        res.status(404).json({ error: 'API handler not found' });
+      }
+    } catch (importError) {
+      console.error(`Failed to import API route ${routePath}:`, importError);
+      res.status(404).json({ error: 'API route not found' });
+    }
+  } catch (error) {
+    console.error('API route error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Dynamically import and handle API routes (general catch-all)
 app.use('/api', async (req, res, next) => {
   try {
     const apiPath = req.path === '/' ? '/index' : req.path;
