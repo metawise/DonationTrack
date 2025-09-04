@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     
-    const transactions = await dbHelpers.getTransactions({
+    const result = await dbHelpers.getTransactions({
       search,
       status,
       startDate: startDate ? new Date(startDate) : undefined,
@@ -20,16 +20,17 @@ export async function GET(request: NextRequest) {
       limit
     });
     
-    // For now, return the count from the query
-    const totalTransactions = transactions?.length || 0;
+    // Handle both possible response formats from dbHelpers
+    const transactions = result?.transactions || result || [];
+    const total = result?.total || transactions.length || 0;
     
     return NextResponse.json({
-      transactions: transactions || [],
+      transactions: Array.isArray(transactions) ? transactions : [],
       pagination: {
         page,
         limit,
-        total: totalTransactions,
-        totalPages: Math.ceil(totalTransactions / limit)
+        total: total,
+        totalPages: Math.ceil(total / limit)
       }
     });
   } catch (error) {

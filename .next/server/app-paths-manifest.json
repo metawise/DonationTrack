@@ -1,8 +1,9 @@
 {
-  "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/api/dashboard/metrics/route": "app/api/dashboard/metrics/route.js",
   "/api/transactions/route": "app/api/transactions/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/dashboard/page": "app/dashboard/page.js"
+  "/api/sync/status/route": "app/api/sync/status/route.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/api/customers/route": "app/api/customers/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/transactions/page": "app/transactions/page.js"
 }

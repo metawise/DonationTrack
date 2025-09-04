@@ -139,8 +139,8 @@ export default function Transactions() {
     },
   });
 
-  const transactions = response?.transactions || [];
-  const totalTransactions = response?.total || 0;
+  const transactions = Array.isArray(response?.transactions) ? response.transactions : [];
+  const totalTransactions = response?.pagination?.total || response?.total || 0;
   const totalPages = Math.ceil(totalTransactions / itemsPerPage);
 
   // Filter transactions based on search and status

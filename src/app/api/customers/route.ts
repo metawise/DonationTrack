@@ -8,17 +8,19 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     
-    const customers = await dbHelpers.getCustomers({ search, page, limit });
-    // For now, return the count from the query
-    const totalCustomers = customers?.length || 0;
+    const result = await dbHelpers.getCustomers({ search, page, limit });
+    
+    // Handle both possible response formats from dbHelpers
+    const customers = result?.customers || result || [];
+    const total = result?.total || customers.length || 0;
     
     return NextResponse.json({
-      customers: customers || [],
+      customers: Array.isArray(customers) ? customers : [],
       pagination: {
         page,
         limit,
-        total: totalCustomers,
-        totalPages: Math.ceil(totalCustomers / limit)
+        total: total,
+        totalPages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
