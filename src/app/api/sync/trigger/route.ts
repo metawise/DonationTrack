@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbHelpers } from '@shared/database-helpers';
 import * as crypto from 'crypto';
+import aws4 from 'aws4';
 
 // Helper to create unique customer ID
 function createExternalCustomerId(firstName: string, lastName: string, email: string | null) {
@@ -8,11 +9,44 @@ function createExternalCustomerId(firstName: string, lastName: string, email: st
   return baseId;
 }
 
+// AWS4 sign request if credentials are available
+function signRequest(url: string, method: string, headers: any, body: string) {
+  const ACCESS_KEY = process.env.MYWELL_ACCESS_KEY_ID;
+  const SECRET_KEY = process.env.MYWELL_SECRET_ACCESS_KEY;
+  
+  if (!ACCESS_KEY || !SECRET_KEY) {
+    console.log('⚠️ AWS credentials not found, using unsigned request');
+    return headers;
+  }
+
+  const urlParts = new URL(url);
+  
+  const opts = {
+    host: urlParts.hostname,
+    path: urlParts.pathname + urlParts.search,
+    method,
+    headers: {
+      ...headers,
+      'Host': urlParts.hostname
+    },
+    body,
+    service: 'execute-api',
+    region: 'us-east-1'
+  };
+
+  const signed = aws4.sign(opts, {
+    accessKeyId: ACCESS_KEY,
+    secretAccessKey: SECRET_KEY
+  });
+
+  return signed.headers;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const API_BASE_URL = 'https://dev-api.mywell.io/api/transaction/gift/search';
     const API_TOKEN_PUBLIC = process.env.MYWELL_API_TOKEN_PUBLIC || '84c7f095-8f50-4645-bc65-b0163c104839';
-    const API_TOKEN_PRIVATE = process.env.MYWELL_API_TOKEN_PRIVATE;
+    const API_TOKEN_PRIVATE = process.env.MYWELL_API_TOKEN_PRIVATE || API_TOKEN_PUBLIC;
     
     let totalSynced = 0;
     let totalProcessed = 0;
@@ -24,16 +58,20 @@ export async function POST(request: NextRequest) {
 
     while (hasMore && page <= 10) { // Limit to 10 pages for safety
       try {
-        const requestBody = {};
+        const requestBody = JSON.stringify({});
+        const url = `${API_BASE_URL}?page=${page}`;
         console.log(`📄 Fetching page ${page}...`);
 
-        const response = await fetch(`${API_BASE_URL}?page=${page}`, {
+        // Get headers with AWS signature if available
+        const headers = signRequest(url, 'POST', {
+          'Content-Type': 'application/json',
+          'apiToken': API_TOKEN_PRIVATE
+        }, requestBody);
+
+        const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apiToken': API_TOKEN
-          },
-          body: JSON.stringify(requestBody)
+          headers,
+          body: requestBody
         });
 
         if (!response.ok) {
