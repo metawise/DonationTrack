@@ -32,26 +32,23 @@ app.use((req, res, next) => {
   }
 });
 
-// Handle API routes with dynamic IDs (like /api/staff/[id]) - MUST come before general API handler
-app.use('/api/:segment/:id', async (req, res, next) => {
+// Handle nested API routes (like /api/auth/send-otp) - MUST come first
+app.use('/api/:segment/:action', async (req, res, next) => {
   try {
-    const { segment, id } = req.params;
+    const { segment, action } = req.params;
     
-    // Skip if this looks like a nested route with action
-    if (req.path.split('/').length > 4) {
-      return next();
-    }
-    
-    const routePath = path.join(process.cwd(), 'api', `${segment}.ts`);
+    // Check if this is a nested API file (not a dynamic ID)
+    const nestedPath = path.join(process.cwd(), 'api', segment, `${action}.ts`);
     
     try {
-      const handler = await import(`file://${routePath}`);
+      // First try the nested path for auth routes etc
+      const handler = await import(`file://${nestedPath}`);
       const apiHandler = handler.default || handler;
       
       if (typeof apiHandler === 'function') {
         const vercelReq = {
           ...req,
-          query: { ...req.query, id },
+          query: { ...req.query },
           body: req.body,
           headers: { ...req.headers },
           method: req.method,
@@ -59,12 +56,34 @@ app.use('/api/:segment/:id', async (req, res, next) => {
         };
         
         await apiHandler(vercelReq, res);
-      } else {
-        res.status(404).json({ error: 'API handler not found' });
+        return;
       }
-    } catch (importError) {
-      console.error(`Failed to import API route ${routePath}:`, importError);
-      res.status(404).json({ error: 'API route not found' });
+    } catch (nestedImportError) {
+      // If nested path fails, try the dynamic ID route
+      const dynamicPath = path.join(process.cwd(), 'api', `${segment}.ts`);
+      
+      try {
+        const handler = await import(`file://${dynamicPath}`);
+        const apiHandler = handler.default || handler;
+        
+        if (typeof apiHandler === 'function') {
+          const vercelReq = {
+            ...req,
+            query: { ...req.query, id: action }, // action is the ID in this case
+            body: req.body,
+            headers: { ...req.headers },
+            method: req.method,
+            url: req.url
+          };
+          
+          await apiHandler(vercelReq, res);
+        } else {
+          res.status(404).json({ error: 'API handler not found' });
+        }
+      } catch (dynamicImportError) {
+        console.error(`Failed to import API route ${nestedPath} or ${dynamicPath}`);
+        res.status(404).json({ error: 'API route not found' });
+      }
     }
   } catch (error) {
     console.error('API route error:', error);
@@ -114,7 +133,7 @@ app.use('/api/:segment/:id/:action', async (req, res) => {
     const routePath = path.join(process.cwd(), 'api', segment, '[id]', `${action}.ts`);
     
     try {
-      const handler = await import(`file://${routePath}`);
+      const handler = await import(`file://${nestedPath}`);
       const apiHandler = handler.default || handler;
       
       if (typeof apiHandler === 'function') {

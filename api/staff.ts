@@ -14,13 +14,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check for ID in query params (from middleware) or URL path
     const staffId = req.query?.id || (req.url?.split('/').filter(Boolean) || [])[req.url?.split('/').filter(Boolean).length - 1];
     
-    console.log('🔍 Staff API Debug:', {
-      method: req.method,
-      url: req.url,
-      query: req.query,
-      staffId,
-      pathParts: req.url?.split('/').filter(Boolean)
-    });
 
     switch (req.method) {
       case 'GET':
