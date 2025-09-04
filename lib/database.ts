@@ -204,6 +204,15 @@ export const dbHelpers = {
     return staff || null;
   },
 
+  async getStaffByEmail(email: string) {
+    const [staff] = await db.select()
+      .from(schema.staff)
+      .where(eq(schema.staff.email, email))
+      .limit(1);
+    
+    return staff || null;
+  },
+
   async createStaff(staff: any) {
     const [newStaff] = await db.insert(schema.staff)
       .values(staff)

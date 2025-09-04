@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { dbHelpers } from '@shared/database-helpers';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -55,13 +56,22 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
     // For demo purposes - accept any 6-digit OTP
     if (actualOtp.length === 6 && /^\d+$/.test(actualOtp)) {
-      // Create a simple user object for the demo
+      // Look up the actual staff member by email
+      const staffMember = await dbHelpers.getStaffByEmail(email);
+      
+      if (!staffMember) {
+        return res.status(400).json({ 
+          error: 'Staff member not found with this email address' 
+        });
+      }
+
+      // Create user object with real staff data
       const user = {
-        id: 'demo-user-id',
-        firstName: 'Demo',
-        lastName: 'User',
-        email: email,
-        role: 'admin'
+        id: staffMember.id,
+        firstName: staffMember.firstName,
+        lastName: staffMember.lastName,
+        email: staffMember.email,
+        role: staffMember.role
       };
 
       // Set a session cookie (demo approach)

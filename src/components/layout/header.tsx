@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
-import { StaffModal } from "@/components/modals/staff-modal";
+import { StaffProfileModal } from "@/components/modals/staff-profile-modal";
 import { useAuth } from "@/contexts/auth-context";
 
 interface HeaderProps {
@@ -81,39 +81,13 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
       </div>
       
       {/* Staff Profile Modal */}
-      <StaffModal
-        staff={user ? {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          role: user.role,
-          phone: null,
-          department: null,
-          status: "active",
-          hireDate: new Date(),
-          createdAt: new Date()
-        } : null}
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        onSave={async (staffData) => {
-          try {
-            const response = await fetch(`/api/staff/${user?.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(staffData)
-            });
-            
-            if (response.ok) {
-              setIsProfileModalOpen(false);
-              // Optionally refresh auth context to get updated user data
-              window.location.reload();
-            }
-          } catch (error) {
-            console.error('Error updating profile:', error);
-          }
-        }}
-      />
+      {user && (
+        <StaffProfileModal
+          userId={user.id}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
+      )}
     </header>
   );
 }
