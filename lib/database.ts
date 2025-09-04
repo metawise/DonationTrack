@@ -260,10 +260,10 @@ export const dbHelpers = {
         );
 
       return {
-        totalDonations: Math.round((Number(totalDonations) || 0) / 100), // Convert cents to dollars
+        totalDonations: Number(totalDonations) || 0, // Keep in cents for frontend formatting
         activeSubscribers: Number(uniqueCustomerCount) || 0, // Real count of unique donors
-        thisMonth: Math.round((Number(thisMonthAmount) || 0) / 100), // Convert cents to dollars
-        avgDonation: Math.round((Number(avgDonation) || 0) / 100) // Convert cents to dollars
+        thisMonth: Number(thisMonthAmount) || 0, // Keep in cents for frontend formatting
+        avgDonation: Math.round(Number(avgDonation) || 0) // Keep in cents for frontend formatting
       };
     } catch (error) {
       console.error('Dashboard metrics error:', error);
