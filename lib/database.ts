@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../shared/schema';
-import { eq, desc, count, sum, sql, and, gte, or } from 'drizzle-orm';
+import { eq, desc, count, sum, sql, and, gte, or, isNotNull } from 'drizzle-orm';
 import { subDays, startOfMonth } from 'date-fns';
 
 // Initialize database connection
@@ -224,42 +224,44 @@ export const dbHelpers = {
   // Dashboard metrics
   async getDashboardMetrics() {
     const thisMonth = startOfMonth(new Date());
-    const lastMonth = subDays(thisMonth, 30);
 
     try {
-      const [
-        [{ totalDonations }],
-        [{ activeSubscribers }],
-        [{ thisMonthAmount }],
-        [{ avgDonation }]
-      ] = await Promise.all([
-        db.select({ totalDonations: sum(schema.transactions.amount) })
-          .from(schema.transactions)
-          .where(eq(schema.transactions.status, 'SETTLED')),
-        
-        db.select({ activeSubscribers: count() })
-          .from(schema.customers)
-          .where(eq(schema.customers.customerType, 'active-subscriber')),
-        
-        db.select({ thisMonthAmount: sum(schema.transactions.amount) })
-          .from(schema.transactions)
-          .where(
-            and(
-              eq(schema.transactions.status, 'SETTLED'),
-              gte(schema.transactions.createdAt, thisMonth)
-            )
-          ),
-        
-        db.select({ 
-          avgDonation: sql<number>`COALESCE(AVG(${schema.transactions.amount}), 0)` 
-        })
-          .from(schema.transactions)
-          .where(eq(schema.transactions.status, 'SETTLED'))
-      ]);
+      // Get total donations and average
+      const [{ totalDonations }] = await db.select({ totalDonations: sum(schema.transactions.amount) })
+        .from(schema.transactions)
+        .where(eq(schema.transactions.status, 'SETTLED'));
+
+      const [{ avgDonation }] = await db.select({ 
+        avgDonation: sql<number>`COALESCE(AVG(${schema.transactions.amount}), 0)` 
+      })
+        .from(schema.transactions)
+        .where(eq(schema.transactions.status, 'SETTLED'));
+
+      // Get this month's amount
+      const [{ thisMonthAmount }] = await db.select({ thisMonthAmount: sum(schema.transactions.amount) })
+        .from(schema.transactions)
+        .where(
+          and(
+            eq(schema.transactions.status, 'SETTLED'),
+            gte(schema.transactions.createdAt, thisMonth)
+          )
+        );
+
+      // Get unique customer count using direct SQL count
+      const [{ uniqueCustomerCount }] = await db.select({ 
+        uniqueCustomerCount: sql<number>`COUNT(DISTINCT ${schema.transactions.externalCustomerId})` 
+      })
+        .from(schema.transactions)
+        .where(
+          and(
+            eq(schema.transactions.status, 'SETTLED'),
+            isNotNull(schema.transactions.externalCustomerId)
+          )
+        );
 
       return {
         totalDonations: Math.round((Number(totalDonations) || 0) / 100), // Convert cents to dollars
-        activeSubscribers: Number(activeSubscribers) || 0,
+        activeSubscribers: Number(uniqueCustomerCount) || 0, // Real count of unique donors
         thisMonth: Math.round((Number(thisMonthAmount) || 0) / 100), // Convert cents to dollars
         avgDonation: Math.round((Number(avgDonation) || 0) / 100) // Convert cents to dollars
       };
