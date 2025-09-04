@@ -39,14 +39,16 @@ export async function POST(request: NextRequest) {
 
     while (hasMore && page <= 10) { // Limit to 10 pages for safety
       try {
-        // Try different request formats to see what works
+        // MyWell API request format based on actual working call
         const requestBody = JSON.stringify({
-          page: page,
-          pageSize: 50,
-          status: "SETTLED"
+          "createdAt": {
+            "startDate": "2025-08-01",  // Get transactions from last month
+            "endDate": "2025-09-04"
+          },
+          "limit": 500
         });
         
-        console.log(`📄 Fetching page ${page} from MyWell API...`);
+        console.log(`📄 Fetching transactions from MyWell API...`);
 
         const response = await fetch(API_BASE_URL, {
           method: 'POST',
@@ -55,53 +57,59 @@ export async function POST(request: NextRequest) {
         });
 
         if (!response.ok) {
-          console.error(`Page ${page} failed:`, response.status);
+          const errorText = await response.text();
+          console.error(`API failed:`, response.status, errorText);
           hasMore = false;
           break;
         }
 
         const data = await response.json();
-        const transactions = data.data || [];
+        // The API returns an array directly or wrapped in data
+        const transactions = Array.isArray(data) ? data : (data.data || []);
         
         if (transactions.length === 0) {
-          console.log(`No transactions on page ${page}, stopping.`);
+          console.log(`No transactions found`);
           hasMore = false;
           break;
         }
 
-        console.log(`Found ${transactions.length} transactions on page ${page}`);
+        console.log(`Found ${transactions.length} transactions`);
 
         // Process each transaction
         for (const tx of transactions) {
           try {
-            // Skip if no customer info
-            if (!tx.customerFirstName && !tx.customerLastName) {
-              continue;
-            }
+            // For transactions without customer info, create anonymous customer
+            // Real customer data would come from a separate customer API endpoint
+            const customerId = tx.customerId || `anonymous_${tx.id}`;
+            const firstName = 'Anonymous';
+            const lastName = `Donor_${tx.id.substring(0, 8)}`;
+            const email = tx.emailAddress || null;
+            
+            console.log(`Processing transaction ${tx.id} - amount: $${(tx.amount/100).toFixed(2)}`);
 
             // Create/find customer
-            const externalCustomerId = createExternalCustomerId(
-              tx.customerFirstName || '',
-              tx.customerLastName || '',
-              tx.customerEmail || null
+            const externalCustomerId = tx.customerId || createExternalCustomerId(
+              firstName,
+              lastName,
+              email
             );
 
             let customer = await dbHelpers.findCustomerByExternalId(externalCustomerId);
             
             if (!customer) {
-              // Create new customer
+              // Create new customer based on MyWell data structure
               customer = await dbHelpers.createCustomer({
                 id: crypto.randomUUID(),
                 externalCustomerId,
-                firstName: tx.customerFirstName || '',
-                lastName: tx.customerLastName || '',
-                email: tx.customerEmail || null,
-                phone: tx.customerPhone || null,
-                address: `${tx.billingStreet1 || ''} ${tx.billingStreet2 || ''}`.trim() || null,
-                city: tx.billingCity || null,
-                state: tx.billingState || null,
-                zipCode: tx.billingPostalCode || null,
-                country: tx.billingCountry || 'USA',
+                firstName,
+                lastName,
+                email,
+                phone: tx.phone || null,
+                address: tx.billingAddress?.street1 || tx.street1 || null,
+                city: tx.billingAddress?.city || tx.city || null,
+                state: tx.billingAddress?.state || tx.state || null,
+                zipCode: tx.billingAddress?.postalCode || tx.postalCode || null,
+                country: tx.billingAddress?.country || tx.country || 'USA',
                 source: 'mywell_sync',
                 totalDonations: 0,
                 lastDonationDate: tx.createdAt ? new Date(tx.createdAt) : new Date(),
@@ -111,26 +119,26 @@ export async function POST(request: NextRequest) {
               console.log(`✅ Created customer: ${customer.firstName} ${customer.lastName}`);
             }
 
-            // Check if transaction exists
-            const transactionId = tx.transactionId || tx.id || crypto.randomUUID();
+            // Check if transaction exists using MyWell ID
+            const transactionId = tx.id;
             const existing = await dbHelpers.getTransactionById(transactionId);
             
             if (!existing) {
-              // Create transaction
+              // Create transaction based on actual MyWell response structure
               await dbHelpers.createTransaction({
                 id: transactionId,
                 externalCustomerId,
                 customerId: customer.id,
-                type: tx.transactionType || 'SALE',
-                kind: tx.transactionKind || 'DONATION',
-                amount: Math.round((tx.totalAmount || tx.amount || 0) * 100), // Convert to cents
-                currency: tx.currency || 'USD',
-                status: tx.status || 'PENDING',
-                paymentMethod: tx.paymentMethod || tx.methodType || 'UNKNOWN',
+                type: tx.type || 'SALE',
+                kind: tx.kind || 'DONATION', 
+                amount: tx.amount || 0, // MyWell sends amount in cents already
+                currency: tx.currencyType || 'USD',
+                status: tx.status || 'SETTLED',
+                paymentMethod: tx.paymentMethod || 'CARD',
                 responseCode: tx.responseCode || null,
                 responseMessage: tx.responseMessage || null,
-                emailAddress: tx.customerEmail || null,
-                description: tx.designation || tx.description || null,
+                emailAddress: email,
+                description: null,
                 createdAt: tx.createdAt ? new Date(tx.createdAt) : new Date(),
                 updatedAt: new Date(),
                 settledAt: tx.settledAt ? new Date(tx.settledAt) : null,
@@ -145,12 +153,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        page++;
-        
-        // Check if there are more pages
-        if (transactions.length < 10) {
-          hasMore = false;
-        }
+        // Only fetch one page for now - MyWell API doesn't paginate this way
+        hasMore = false;
+        console.log(`Processing ${transactions.length} transactions...`);
       } catch (pageError: any) {
         console.error(`Error on page ${page}:`, pageError);
         errors.push(`Page ${page}: ${pageError.message}`);
